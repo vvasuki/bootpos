@@ -1,0 +1,52 @@
+#!/bin/bash
+
+JARS=`echo $BOOTPOS_DIR/lib/*.jar $BOOTPOS_DIR/target/*.jar $BOOTPOS_DIR/lib_managed/compile/*.jar | tr ' ' ':'`
+SCALA_LIB="$BOOTPOS_DIR/project/boot/scala-2.9.0/lib/scala-library.jar"
+
+CP=$BOOTPOS_DIR/target/classes:$BOOTPOS_DIR/src/main/resources:$JARS:$SCALA_LIB:$CLASSPATH
+
+echo $JARS
+
+if [ -z $JAVA_MEM_FLAG ] 
+then
+    JAVA_MEM_FLAG=-Xmx2g
+fi
+
+JAVA_COMMAND="java $JAVA_MEM_FLAG -classpath $CP"
+
+CMD=$1
+shift
+
+help()
+{
+cat <<EOF
+Bootpos 0.1 commands: 
+
+  build         build Bootpos with SBT
+  config  	run Bootpos on the specified config file
+  run           run the main method of a given class
+
+Include --help with any option for more information
+EOF
+}
+
+if [ $CMD = 'build' ]; then
+
+    java -jar $BOOTPOS_DIR/project/build/sbt-launch-0.7.7.jar "$@"
+
+else 
+
+    CLASS=
+
+    case $CMD in
+	config) CLASS=opennlp.bootpos.app.BootPos;;
+	run) CLASS=$1; shift;;
+	help) help; exit 1;;
+	*) echo "Unrecognized command: $CMD"; help; exit 1;;
+    esac
+
+    $JAVA_COMMAND $CLASS $*
+
+fi
+
+
