@@ -139,7 +139,8 @@ class MatrixBufferDense[T] (rowsIn: Int, colsIn: Int, defaultValue: T = null.asI
   }
 }
 
-//Each row is a HashMap where keys are stored in a trie/ prefix tree. So excessive memory is not wasted in storing sparse data.
+// Each row is a HashMap where keys are stored in a trie/ prefix tree. So excessive memory is not wasted in storing sparse data.
+// So each row is sparse.
 class MatrixBufferRowSparse[T] (rowsIn: Int, defaultValue: T = null.asInstanceOf[T]) extends MatrixBuffer[T, HashMap[Int, T]](rowsIn){
 
 //  Confidence in correctness: High.
@@ -166,7 +167,8 @@ class MatrixBufferRowSparse[T] (rowsIn: Int, defaultValue: T = null.asInstanceOf
 //  Reason: Proved correct.
   def update(row: Int, col: Int, value: T) = {
     expandBuffer(row, col)
-    matrix(row) = matrix(row) + (col -> value)
+    if(value == 0) matrix(row) = matrix(row) - col
+    else matrix(row) = matrix(row) + (col -> value)
   }
   
 //  Confidence in correctness: High.

@@ -54,7 +54,8 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 
 //    Set tag-node labels.
     var labels = (0 to numTags-1) map(x => 
-      LabelCreator(nodeNamer.t(x), x.toString))
+      LabelCreator(nodeNamer.t(x), tagIntMap.getKey(x).get)
+    )
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
@@ -140,64 +141,60 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
       }
       wordAfterWordMap(sentenceSepWord, sentenceSepWord) = 0
 
-      var expectedTags = testWordSet.map(x => {
-        var tags = wordTagMapTest(x);
-        var bestTag = tags.indexOf(tags.max)
-        LabelCreator(nodeNamer.w(x), bestTag.toString)}).toList
-      return expectedTags
+      var expectedLabels = testWordSet.map(x => {
+        val tagFreq = wordTagMapTest(x)
+        val tags = tagFreq.indices.filter(y => tagFreq(y)>0);
+        tags.map(y => {
+          val tagStr = tagIntMap.getKey(y).get;
+          val tagPr = tagFreq(y)/tagFreq.sum.toDouble;
+          new Label(nodeNamer.w(x), tagStr, tagPr);
+        }).toList
+      }).toList.flatten
+      return expectedLabels
     }
 
     var expectedLabels = prepareGraphData
     var graph = getGraph(expectedLabels)
     JuntoRunner(graph, 1.0, .01, .01, 5, false)
     
-    var resultPair = new ArrayBuffer[Array[Boolean]](testData.length)
-//    resultPair = resultPair.padTo(testData.length, (0, false))
 //      Get tag lables from graph.
+    var resultPair = new ArrayBuffer[Array[Boolean]](testData.length)
+    def getBestLabel(v: Vertex):String = {
+      val tags = tagIntMap.keys.toList
+      val scores = tags.map(v.GetEstimatedLabelScore(_))
+      val maxScore = scores.max
+      tags(scores.indices.find(scores(_) == maxScore).get)
+    }
     for(Array(token, actualTag) <- testData) {
       val bNovelWord = (token >= numTrainingWords)
-      println(token + " ** " + graph._vertices.get(nodeNamer.w(1)))
-      val tagStr = graph._vertices.get(nodeNamer.w(token)).getEstimatedLabelBest()
-      println("--- "   + graph._vertices.get(nodeNamer.w(1)).GetEstimatedLabelScore("1"))
-      val bCorrect = nodeNamer.getId(tagStr) == actualTag
-      println("token: "+ token + " tag "+ tagStr)
+      val tagStr = getBestLabel(graph._vertices.get(nodeNamer.w(token)))
+      println("tokenStr: "+ wordIntMap.getKey(token).get+ " tag "+ tagStr)
+      val bCorrect = getTagId(tagStr) == actualTag
       resultPair += Array(bCorrect, bNovelWord)
     }
-
-    //val resultPair = for(Array(token, actualTag) <- testData) yield {
-    //  val bNovelWord = (token >= numTrainingWords)
-    //  val tagStr = graph._vertices.get(nodeNamer.w(token)).getEstimatedLabelBest()
-    //  val bCorrect = nodeNamer.getId(tagStr) == actualTag
-    //  println("token: "+ token + " tag "+ tagStr)
-    //  (bCorrect, bNovelWord)
-    //}
 
     //val resultPair = testData map { (t,tag) => ... }
 
     resultPair
   }
 
+  object nodeNamer {
+  //  Prefixes distinguishing string names for various types of nodes.
+  //  Assumption: They are all of equal length.
+    val P_WORD = "W_"
+    val P_PREVWORD = "P_"
+    val P_TAG = "T_"
+
+  //  For all three "convenience" functions:
+  //  Confidence in correctness: High.
+  //  Reason: proved correct.
+    def w(id: Int) = P_WORD + wordIntMap.getKey(id).get
+    def p(id: Int) = P_PREVWORD + wordIntMap.getKey(id).get
+    def t(id: Int) = P_TAG + tagIntMap.getKey(id).get
+
+  //  Confidence in correctness: High.
+  //  Reason: proved correct.
+    def getId(nodeName: String): String = nodeName.substring(P_TAG.length)
+  }
 }
 
-object nodeNamer {
-//  Prefixes distinguishing string names for various types of nodes.
-//  Assumption: They are all of equal length.
-  val P_WORD = "W_"
-  val P_PREVWORD = "P_"
-  val P_TAG = "T_"
-  
-//  Confidence in correctness: High.
-//  Reason: proved correct.
-  def getStringName(id: Int, nodeType: String) = nodeType + id
-
-//  For all three "convenience" functions:
-//  Confidence in correctness: High.
-//  Reason: proved correct.
-  def w(id: Int) = getStringName(id, P_WORD)
-  def p(id: Int) = getStringName(id, P_PREVWORD)
-  def t(id: Int) = getStringName(id, P_TAG)
-
-//  Confidence in correctness: High.
-//  Reason: proved correct.
-  def getId(nodeName: String): Int = nodeName.substring(P_TAG.length).toInt
-}

@@ -175,10 +175,10 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
       var newSentenceLine = sentenceSepWord;
       for(i <- 1 to tagField) newSentenceLine = newSentenceLine + sep + sentenceSepTag
       var lineMap = (x:String)=> {var y = x.trim;
-                                  if(y.isEmpty()) y= newSentenceLine;
-                                  if(taggerType == "OpenNLP") y
-                                  else y.map(_.toUpper)
-                                  }
+				if(y.isEmpty()) y= newSentenceLine;
+				if(taggerType == "OpenNLP") y
+				else y.map(_.toUpper)
+				}
 
 //      Prepare a function to filter the lines from the stream based on whether they have the right number of fields and language-tags.
       var filterFn = ((x:Array[String]) => (x.length >= tagField+1))

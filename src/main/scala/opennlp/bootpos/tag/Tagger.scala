@@ -25,6 +25,9 @@ trait Tagger {
     tagIntMap(tag)
   }
 
+  def getTagStr(tag: Int) = tagIntMap.getKey(tag).get
+  def getWordStr(word: Int) = wordIntMap.getKey(word).get
+
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def getWordId(word: String): Int = {
