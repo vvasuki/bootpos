@@ -54,7 +54,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 
 //    Set tag-node labels.
     var labels = (0 to numTags-1) map(x => 
-      LabelCreator(nodeNamer.t(x), tagIntMap.getKey(x).get)
+      LabelCreator(nodeNamer.t(x), getTagStr(x))
     )
 
 //  Confidence in correctness: High.
@@ -96,10 +96,10 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     }
 
     val edges = makeEdges
-    println("edges:")
+/*    println("edges:")
     edges.foreach(println)
     println("labels:" + labels)
-    println("expectedLabels:" + expectedLabels)
+    println("expectedLabels:" + expectedLabels)*/
     val graph = GraphBuilder(edges.toList, labels.toList, expectedLabels)
     graph
   }
@@ -145,7 +145,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
         val tagFreq = wordTagMapTest(x)
         val tags = tagFreq.indices.filter(y => tagFreq(y)>0);
         tags.map(y => {
-          val tagStr = tagIntMap.getKey(y).get;
+          val tagStr = getTagStr(y);
           val tagPr = tagFreq(y)/tagFreq.sum.toDouble;
           new Label(nodeNamer.w(x), tagStr, tagPr);
         }).toList
@@ -155,7 +155,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 
     var expectedLabels = prepareGraphData
     var graph = getGraph(expectedLabels)
-    JuntoRunner(graph, 1.0, .01, .01, 5, false)
+    JuntoRunner(graph, 1.0, .01, .01, 10, false)
     
 //      Get tag lables from graph.
     var resultPair = new ArrayBuffer[Array[Boolean]](testData.length)
@@ -168,7 +168,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     for(Array(token, actualTag) <- testData) {
       val bNovelWord = (token >= numTrainingWords)
       val tagStr = getBestLabel(graph._vertices.get(nodeNamer.w(token)))
-      println("tokenStr: "+ wordIntMap.getKey(token).get+ " tag "+ tagStr)
+//       println("tokenStr: "+ getWordStr(token)+ " tag "+ tagStr + "act: "+getTagStr(actualTag))
       val bCorrect = getTagId(tagStr) == actualTag
       resultPair += Array(bCorrect, bNovelWord)
     }
@@ -188,9 +188,9 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
   //  For all three "convenience" functions:
   //  Confidence in correctness: High.
   //  Reason: proved correct.
-    def w(id: Int) = P_WORD + wordIntMap.getKey(id).get
-    def p(id: Int) = P_PREVWORD + wordIntMap.getKey(id).get
-    def t(id: Int) = P_TAG + tagIntMap.getKey(id).get
+    def w(id: Int) = P_WORD + getWordStr(id)
+    def p(id: Int) = P_PREVWORD + getWordStr(id)
+    def t(id: Int) = P_TAG + getTagStr(id)
 
   //  Confidence in correctness: High.
   //  Reason: proved correct.
