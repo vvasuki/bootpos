@@ -29,9 +29,12 @@ with GenericTraversableTemplate[T, ExpandingArray]
      with IndexedSeqOptimized[T, ExpandingArray[T]]
      with Builder[T, ExpandingArray[T]]
      with ResizableArray[T] {
+//   The below few lines were copied from ArrayBuffer.scala in order to ensure that some common operations ( Eg: map?) return an ExpandingArray.
   override def companion: GenericCompanion[ExpandingArray] = ExpandingArray
   override def result: ExpandingArray[T] = this
   def this(v: Seq[T]) = {this(v.length);  ++=(v)}
+  override def stringPrefix: String = "ExpandingArray"
+
 
 //  Confidence in correctness: High.
 //  Reason:Tested multiple times
@@ -50,6 +53,7 @@ with GenericTraversableTemplate[T, ExpandingArray]
 //  Confidence in correctness: High.
 //  Reason:Tested multiple times
   override def update(index: Int, value: T) = {padTill(index + 1); super.update(index, value)}
+
 }
 object ExpandingArray extends SeqFactory[ExpandingArray] {
   implicit def canBuildFrom[A]: CanBuildFrom[Coll, A, ExpandingArray[A]] = new GenericCanBuildFrom[A]
@@ -135,7 +139,7 @@ class MatrixBufferDense[T] (rowsIn: Int, colsIn: Int, defaultValue: T = null.asI
 //  Reason: Proved correct.
   def increment(row: Int, col: Int)(implicit numeric: Numeric[T]) = {
     expandBuffer(row, col)
-    matrix(row)(col) = numeric.plus(apply(row, col), 1.asInstanceOf[T])
+    matrix(row)(col) = numeric.plus(apply(row, col), (1.0).asInstanceOf[T])
   }
 }
 

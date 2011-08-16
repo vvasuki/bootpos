@@ -8,27 +8,70 @@ import opennlp.bootpos.tag._
 import opennlp.bootpos.tag.hmm._
 import java.util.NoSuchElementException
 
-class CorpusProcessor(language: String, corpus: String, taggerType: String = "WordTagProbabilities"){
+class TaggingResult {
   var numTestTokensKnown = 0
+  var numTestTokensSeen = 0
   var numTestTokensNovel = 0
   var correctTaggingsKnown = 0
+  var correctTaggingsSeen = 0
   var correctTaggingsNovel = 0
 
-  val DATA_DIR = BootPos.DATA_DIR
-  val TEST_DIR = "test"
-  val TRAINING_DIR = "train"
-  val WIKTIONARY = DATA_DIR+"TEMP-S20110618.tsv"
+//  Confidence in correctness: High.
+//  Reason: Well tested.
+  def update(bCorrect: Boolean, bNovelToken: Boolean, bSeenToken: Boolean) = {
+    if(!bNovelToken) {
+      if(bCorrect) correctTaggingsKnown  = correctTaggingsKnown  + 1
+      numTestTokensKnown = numTestTokensKnown + 1
+    }
+    else if(bSeenToken){
+      if(bCorrect) correctTaggingsSeen  = correctTaggingsSeen  + 1
+      numTestTokensSeen = numTestTokensSeen + 1
+    }
+    else {
+      if(bCorrect) correctTaggingsNovel  = correctTaggingsNovel  + 1
+      numTestTokensNovel = numTestTokensNovel + 1
+    }
+  }
 
+//  Confidence in correctness: High.
+//  Reason: Well tested.
+  def getAccuracy() = {
+    var correctTaggings = correctTaggingsKnown + correctTaggingsNovel
+    var numTestTokens = numTestTokensKnown + numTestTokensNovel
+    var accuracy = correctTaggings/ numTestTokens.toDouble
+    var accuracyKnown = correctTaggingsKnown/ numTestTokensKnown.toDouble
+    var accuracyNovel = correctTaggingsNovel/ numTestTokensNovel.toDouble
+
+    printf("Accuracy: %.3f, (Known: %.3f, Novel: %.3f)\n", accuracy, accuracyKnown, accuracyNovel)
+    printf("Non training tokens: %d, %.3f\n", numTestTokensNovel, numTestTokensNovel/numTestTokens.toDouble)
+  }
+  
+//  Confidence in correctness: High.
+//  Reason: Well tested.
+  def processTaggingResults(results: ArrayBuffer[Array[Boolean]], testData: ArrayBuffer[Array[String]], sentenceSepWord: String)= {
+    val bUntaggedTextUsed = results(0).length>2
+    for {i <- testData.indices.iterator
+      if(testData(i)(0) != sentenceSepWord)
+    }{
+      val tag = testData(i)(0);
+      val bCorrect  = results(i)(0)
+
+      // The token has been seen in tagged text.
+      val bNovelToken = results(i)(1)
+
+      // The token has been seen in untagged text - so not entirely novel.
+      val bSeenToken = if(bUntaggedTextUsed) results(i)(2) else false
+      update(bCorrect, bNovelToken, bSeenToken)
+    }
+  }
+}
+
+class TagMap(TAG_MAP_DIR: String, language: String, corpus: String) {
+  val tagMap = new HashMap[String, String]()
+  
   var unmappedTags = 0
+
   val LANGUAGE_CODE_MAP = getClass.getResource("/lang/languageCodes.properties").getPath
-  val TAG_MAP_DIR = DATA_DIR+"universal_pos_tags.1.02/"
-
-  val sentenceSepTag = "###"
-  val sentenceSepWord = "###"
-
-
-
-
   var languageCode = language
   // Deduce language code
   var parser = new TextTableParser(file = LANGUAGE_CODE_MAP, separator = ' ', x =>x.length >= 2, lineMapFn = null)
@@ -36,19 +79,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   if(iter.hasNext)
     languageCode = (iter.next())(0)
   println(languageCode)
-  
-//  Confidence in correctness: High.
-//  Reason: Proved correct.
-  var tagger: Tagger = null
-  taggerType match {
-    case "OpenNLP" => tagger = new OpenNLP( languageCode, sentenceSepTag, sentenceSepWord)
-    case "HMM" => tagger = new HMM(sentenceSepTag, sentenceSepWord)
-    case "LabelPropagation" => tagger = new LabelPropagationTagger(sentenceSepTag, sentenceSepWord)
-    case _ => tagger = new WordTagProbabilities(sentenceSepTag, sentenceSepWord)
-  }
 
-
-  val tagMap = new HashMap[String, String]()
   //X - other: foreign words, typos, abbreviations
   //ADP - adpositions (prepositions and postpositions)
   //. - punctuation
@@ -58,7 +89,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //  Reason: Well tested.
   if(BootPos.bUniversalTags)  {
     // Populate the tagMap by reading the appropriate file.
-    parser = new TextTableParser(file = TAG_MAP_DIR + languageCode + "-" + corpus + ".map", filterFnIn = (x =>x.length >= 2), lineMapFn = (x => x.map(_.toUpper)))
+    val parser = new TextTableParser(file = TAG_MAP_DIR + languageCode + "-" + corpus + ".map", filterFnIn = (x =>x.length >= 2), lineMapFn = (x => x.map(_.toUpper)))
     parser.getRowIterator.foreach(x => tagMap(x(0)) = x(1))
     tagMap.values.foreach(x => tagMap(x) = x)
 
@@ -66,11 +97,6 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     tagsUniversal.foreach(x => tagMap(x) = x)
 //    print(tagMap)
   }
-
-  if(BootPos.bWiktionary) processFile(WIKTIONARY)
-  if(BootPos.bUseTrainingData) processFile(TRAINING_DIR)
-
-
 
 //  Confidence in correctness: High.
 //  Reason: Proved.
@@ -110,26 +136,44 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     return tag
   }
 
+}
+
+class CorpusProcessor(language: String, corpus: String, taggerType: String = "WordTagProbabilities"){
+  var tr = new TaggingResult()
+  val tagMap = new TagMap(DATA_DIR+"universal_pos_tags.1.02/", language, corpus)
+
+  val DATA_DIR = BootPos.DATA_DIR
+  val TEST_DIR = "test"
+  val TRAINING_DIR = "train"
+  val WIKTIONARY = DATA_DIR+"TEMP-S20110618.tsv"
+
+  val sentenceSepTag = "###"
+  val sentenceSepWord = "###"
+
+
+
 
 //  Confidence in correctness: High.
-//  Reason: Well tested.
-  def getAccuracy() = {
-    processFile(TEST_DIR)
-    var correctTaggings = correctTaggingsKnown + correctTaggingsNovel
-    var numTestTokens = numTestTokensKnown + numTestTokensNovel
-    var accuracy = correctTaggings/ numTestTokens.toDouble
-    var accuracyKnown = correctTaggingsKnown/ numTestTokensKnown.toDouble
-    var accuracyNovel = correctTaggingsNovel/ numTestTokensNovel.toDouble
-
-    printf("Accuracy: %.3f, (Known: %.3f, Novel: %.3f)\n", accuracy, accuracyKnown, accuracyNovel)
-    printf("Non training tokens: %d, %.3f\n", numTestTokensNovel, numTestTokensNovel/numTestTokens.toDouble)
+//  Reason: Proved correct.
+  var tagger: Tagger = null
+  taggerType match {
+    case "OpenNLP" => tagger = new OpenNLP( tagMap.languageCode, sentenceSepTag, sentenceSepWord)
+    case "HMM" => tagger = new HMM(sentenceSepTag, sentenceSepWord)
+    case "LabelPropagation" => tagger = new LabelPropagationTagger(sentenceSepTag, sentenceSepWord)
+    case _ => tagger = new WordTagProbabilities(sentenceSepTag, sentenceSepWord)
   }
+
+  if(BootPos.bWiktionary) processFile(WIKTIONARY)
+  if(BootPos.bUseTrainingData) processFile(TRAINING_DIR)
+
+
 
   def test = {
     println(language + ' ' + corpus);
-    getAccuracy()
+    processFile(TEST_DIR)
+    tr.getAccuracy()
     println("Most frequent tag overall: "+ tagger.bestTagsOverall)
-    if(BootPos.bUniversalTags) println(unmappedTags + " unmapped tags.")
+    if(BootPos.bUniversalTags) println(tagMap.unmappedTags + " unmapped tags.")
   }
 
 //  Confidence in correctness: High.
@@ -146,10 +190,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     }
 
     if(mode.equals(TEST_DIR)) {
-      numTestTokensKnown = 0
-      numTestTokensNovel = 0
-      correctTaggingsKnown = 0
-      correctTaggingsNovel = 0
+      tr = new TaggingResult()
     }
 
     val file = getFileName(mode)
@@ -188,7 +229,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
       val parser = new TextTableParser(file = file, separator = sep, filterFnIn = filterFn, lineMapFn = lineMap)
       parser.getFieldIterator(wordField, tagField).map(x => {
           var tag = x(1); var word = x(0);
-          if(BootPos.bUniversalTags) tag = getMappedTag(tag, word)
+          if(BootPos.bUniversalTags) tag = tagMap.getMappedTag(tag, word)
           Array(word, tag)
         })
     }
@@ -202,23 +243,8 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
       val testData = new ArrayBuffer[Array[String]](10000)
       iter.copyToBuffer(testData)
       println(testData.length)
-      val resultPair = tagger.predict(testData)
-      for {i <- testData.indices.iterator
-        if(testData(i)(0) != sentenceSepWord)
-      }{
-        val tag = testData(i)(0);
-        val bCorrect  = resultPair(i)(0)
-        val bNovelToken = resultPair(i)(1)
-        
-        if(!bNovelToken) {
-          if(bCorrect) correctTaggingsKnown  = correctTaggingsKnown  + 1
-          numTestTokensKnown = numTestTokensKnown + 1;
-        }
-        else {
-          if(bCorrect) correctTaggingsNovel  = correctTaggingsNovel  + 1
-          numTestTokensNovel = numTestTokensNovel + 1;
-        }
-      }
+      val results = tagger.test(testData)
+      tr.processTaggingResults(results, testData, sentenceSepWord)
     }
 
   }

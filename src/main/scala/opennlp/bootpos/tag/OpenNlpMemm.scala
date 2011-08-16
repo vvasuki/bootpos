@@ -70,7 +70,7 @@ class OpenNLP(languageCode: String, sentenceSepTagStr :String, sentenceSepWordSt
   
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
-  def predict(testData: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
+  def test(testData: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
     val numWords  = wordIntMap.size
     val numTokens = testData.length
     var resultPair = new ArrayBuffer[Array[Boolean]](numTokens + 1)

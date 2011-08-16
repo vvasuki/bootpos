@@ -41,7 +41,7 @@ trait Tagger {
 
 
   def train(iter: Iterator[Array[String]])
-  def predict(testData: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]]
+  def test(testData: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]]
 }
 
 class WordTagProbabilities(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger {
@@ -72,7 +72,7 @@ class WordTagProbabilities(sentenceSepTagStr :String, sentenceSepWordStr: String
 
 //  Confidence in correctness: High.
 //  Reason: Well tested.
-  def predict(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
+  def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
   //  Confidence in correctness: High.
   //  Reason: Well tested.
     def getBestTag(word: Int):Int = {

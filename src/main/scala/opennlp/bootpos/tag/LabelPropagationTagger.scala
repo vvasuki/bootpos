@@ -112,7 +112,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //
 //  Confidence in correctness: Low.
 //  Reason: Proved correct but test on ic database fails to produce expected results.
-  def predict(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
+  def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
     val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
 
 //  Tasks:
