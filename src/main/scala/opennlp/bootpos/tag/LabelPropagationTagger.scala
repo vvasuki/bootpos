@@ -13,7 +13,6 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
   val wordAfterWordMap = new MatrixBufferRowSparse[Int](WORDNUM_IN)
   val wordTagMap = new MatrixBufferDense[Int](WORDNUM_IN, TAGNUM_IN)
   var numTrainingWords = 0
-  var numTags = 0
 
 //  Input: word-token pairs - from a dictionary or tagged text.
 //  State alteration: Appropriately update the wordTagMap and wordAfterWordMap tables,
@@ -29,7 +28,6 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     }
     wordAfterWordMap(sentenceSepWord, sentenceSepWord) = 0
     numTrainingWords = wordTagMap.length
-    numTags = wordTagMap.numCols
   }
 
 

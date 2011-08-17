@@ -139,8 +139,6 @@ class TagMap(TAG_MAP_DIR: String, language: String, corpus: String) {
 }
 
 class CorpusProcessor(language: String, corpus: String, taggerType: String = "WordTagProbabilities"){
-  var tr = new TaggingResult()
-  val tagMap = new TagMap(DATA_DIR+"universal_pos_tags.1.02/", language, corpus)
 
   val DATA_DIR = BootPos.DATA_DIR
   val TEST_DIR = "test"
@@ -150,6 +148,10 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   val sentenceSepTag = "###"
   val sentenceSepWord = "###"
 
+  var tagResults = new TaggingResult()
+  val tagMap = new TagMap(DATA_DIR+"universal_pos_tags.1.02/", language, corpus)
+  var bProcessUntaggedData = false
+  var bIgnoreCase = true
 
 
 
@@ -157,8 +159,15 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //  Reason: Proved correct.
   var tagger: Tagger = null
   taggerType match {
-    case "OpenNLP" => tagger = new OpenNLP( tagMap.languageCode, sentenceSepTag, sentenceSepWord)
+    case "OpenNLP" => {
+      tagger = new OpenNLP( tagMap.languageCode, sentenceSepTag, sentenceSepWord)
+      bIgnoreCase = false
+    }
     case "HMM" => tagger = new HMM(sentenceSepTag, sentenceSepWord)
+    case "EMHMM" => {
+      tagger = new EMHMM(sentenceSepTag, sentenceSepWord)
+      bProcessUntaggedData = true
+    }
     case "LabelPropagation" => tagger = new LabelPropagationTagger(sentenceSepTag, sentenceSepWord)
     case _ => tagger = new WordTagProbabilities(sentenceSepTag, sentenceSepWord)
   }
@@ -171,80 +180,91 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   def test = {
     println(language + ' ' + corpus);
     processFile(TEST_DIR)
-    tr.getAccuracy()
+    tagResults.getAccuracy()
     println("Most frequent tag overall: "+ tagger.bestTagsOverall)
     if(BootPos.bUniversalTags) println(tagMap.unmappedTags + " unmapped tags.")
   }
 
 //  Confidence in correctness: High.
 //  Reason: Well tested.
-  def processFile(mode: String) = {
+  def getFileName(fileType: String): String = {
+    var languageCorpusString = language;
+    val subDir = fileType.replace("raw", "test")
+    if(!corpus.equals("")) languageCorpusString = languageCorpusString + '/' + corpus
+    var file = DATA_DIR + languageCorpusString + '/'+ subDir+'/' + languageCorpusString.replace("/", "_") + '_'+ fileType
+    if(!corpus.equals("")) file = file + ".conll"
+    else file = file.replace("_", "")
+    file
+  }
 
-    def getFileName(fileType: String): String = {
-      var languageCorpusString = language;
-      if(!corpus.equals("")) languageCorpusString = languageCorpusString + '/' + corpus
-      var file = DATA_DIR + languageCorpusString + '/'+ fileType+'/' + languageCorpusString.replace("/", "_") + '_'+ fileType
-      if(!corpus.equals("")) file = file + ".conll"
-      else file = file.replace("_", "")
-      file
-    }
-
-    if(mode.equals(TEST_DIR)) {
-      tr = new TaggingResult()
-    }
-
-    val file = getFileName(mode)
-//    println(file)
+  def lineMap(newSentenceLine: String = sentenceSepWord)(x:String)= {
+    var y = x.trim;
+    if(y.isEmpty()) y= newSentenceLine;
+    if(bIgnoreCase) y
+    else y.map(_.toUpper)
+  }
 
 //    @return Iterator[Array[String]] whose elements are arrays of size 2, whose
 //      first element is the word and second element is the corresponding tag.
 //    Confidence in correctness: High
 //    Reason: Used many times without problems.
-    def getWordTagIteratorFromFile: Iterator[Array[String]] = {
+  def getWordTagIteratorFromFile(mode: String): Iterator[Array[String]] = {
 //      Determine wordField, tagField, sep
-      var wordField = 1
-      var tagField = 3;
-      var sep = '\t'
-      if(language.equals("danish")) tagField = 4
-      if(corpus.equals("")) {
-        wordField = 0; tagField = 1; sep = '/'
-      }
-      if(mode.equals(WIKTIONARY))tagField = 2
+    val file = getFileName(mode)
+    var wordField = 1
+    var tagField = 3;
+    var sep = '\t'
+    if(language.equals("danish")) tagField = 4
+    if(corpus.equals("")) {
+      wordField = 0; tagField = 1; sep = '/'
+    }
+    if(mode.equals(WIKTIONARY))tagField = 2
 
 
 //      Prepare a function to map empty lines to an empty sentence word/ token pair.
-      var newSentenceLine = sentenceSepWord;
-      for(i <- 1 to tagField) newSentenceLine = newSentenceLine + sep + sentenceSepTag
-      var lineMap = (x:String)=> {var y = x.trim;
-				if(y.isEmpty()) y= newSentenceLine;
-				if(taggerType == "OpenNLP") y
-				else y.map(_.toUpper)
-				}
+    var newSentenceLine = sentenceSepWord;
+    for(i <- 1 to tagField) newSentenceLine = newSentenceLine + sep + sentenceSepTag
 
 //      Prepare a function to filter the lines from the stream based on whether they have the right number of fields and language-tags.
-      var filterFn = ((x:Array[String]) => (x.length >= tagField+1))
-      if(mode.equals(WIKTIONARY))
-        filterFn = ((x:Array[String]) => ((x.length >= tagField+1) && x(0).equalsIgnoreCase(language)))
+    var filterFn = ((x:Array[String]) => (x.length >= tagField+1))
+    if(mode.equals(WIKTIONARY))
+      filterFn = ((x:Array[String]) => ((x.length >= tagField+1) && x(0).equalsIgnoreCase(language)))
 
-      val parser = new TextTableParser(file = file, separator = sep, filterFnIn = filterFn, lineMapFn = lineMap)
-      parser.getFieldIterator(wordField, tagField).map(x => {
-          var tag = x(1); var word = x(0);
-          if(BootPos.bUniversalTags) tag = tagMap.getMappedTag(tag, word)
-          Array(word, tag)
-        })
+    val parser = new TextTableParser(file = file, separator = sep, filterFnIn = filterFn, lineMapFn = lineMap(newSentenceLine))
+    parser.getFieldIterator(wordField, tagField).map(x => {
+        var tag = x(1); var word = x(0);
+        if(BootPos.bUniversalTags) tag = tagMap.getMappedTag(tag, word)
+        Array(word, tag)
+      })
+  }
+
+//  Confidence in correctness: High.
+//  Reason: Well tested.
+  def processFile(mode: String) = {
+
+    if(mode.equals(TEST_DIR)) {
+      tagResults = new TaggingResult()
     }
 
-    val iter = getWordTagIteratorFromFile
+    val iter = getWordTagIteratorFromFile(mode)
 
     if(!mode.equals(TEST_DIR)) {
       tagger.train(iter)
+      if(bProcessUntaggedData){
+        val untaggedDataFile = getFileName("raw")
+        val tokens = new ArrayBuffer[String]()
+        tokens ++= new TextTableParser(file = untaggedDataFile, lineMapFn = lineMap()).getLines
+        if(tokens.head != sentenceSepWord) tokens prepend sentenceSepWord
+        if(tokens.last != sentenceSepWord) tokens += sentenceSepWord
+        tagger.processUntaggedData(tokens)
+      }
     }
     else {
       val testData = new ArrayBuffer[Array[String]](10000)
       iter.copyToBuffer(testData)
       println(testData.length)
       val results = tagger.test(testData)
-      tr.processTaggingResults(results, testData, sentenceSepWord)
+      tagResults.processTaggingResults(results, testData, sentenceSepWord)
     }
 
   }

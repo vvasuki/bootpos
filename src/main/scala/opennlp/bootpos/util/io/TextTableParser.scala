@@ -4,11 +4,16 @@ import scala.io.Source
 class TextTableParser(file: String, separator: Char = '\t', filterFnIn: Array[String] => Boolean = (x =>x.length >=1), lineMapFn : String => String = null){
   val src = Source.fromFile(file)
 
+  def getLines: Iterator[String]={
+    var lines = src.getLines()
+    if(lineMapFn != null) lines = lines.map(lineMapFn)
+    lines
+  }
+
 //    Confidence in correctness: High
 //    Reason: Used many times without problems.
   def getRowIterator: Iterator[Array[String]] = {
-    var lines = src.getLines()
-    if(lineMapFn != null) lines = lines.map(lineMapFn)
+    val lines = getLines
     lines.map(_.split(separator)).filter(filterFnIn)
   }
 

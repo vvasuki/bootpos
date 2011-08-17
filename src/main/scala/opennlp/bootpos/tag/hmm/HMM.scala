@@ -21,15 +21,22 @@ logPrTagGivenTag, due to its small size, should be precomputed.
   var logPrWordGivenTag = new MatrixBufferDense[Double](WORDNUM_IN, TAGNUM_IN)
   var logPrNovelWord = new ExpandingArray[Double](TAGNUM_IN)
   var numWordsTraining = 0
-  val dataCounts = new DataCounts
 
-  class DataCounts {
+  var wordTagStatsFinal = new WordTagStats
+
+  def getArcPr(tag:Int, prevTag: Int, word: Int) = {
+    var logPrW = logPrNovelWord(tag)
+    if(word < numWordsTraining) logPrW = logPrWordGivenTag(word, tag)
+    logPrTagGivenTag(tag, prevTag) + logPrW
+  }
+
+  class WordTagStats {
   // The following are Double arrays because in case of EM-HMM, counts could be a non-integer.
     var wordTagCount = new MatrixBufferDense[Double](WORDNUM_IN, TAGNUM_IN)
     var singletonWordsPerTag = new ExpandingArray[Double](TAGNUM_IN)
     var tagBeforeTagCount = new MatrixBufferDense[Double](TAGNUM_IN, TAGNUM_IN)
     var tagCount = new ExpandingArray[Double](TAGNUM_IN)
-    var tokenCount = 0
+    var tokenCount = 0.0
     
     def numWords = wordTagCount.length
     def numTags = tagBeforeTagCount.length;
@@ -61,41 +68,54 @@ logPrTagGivenTag, due to its small size, should be precomputed.
         prevTag = tag
       }
       tagBeforeTagCount(sentenceSepTag, sentenceSepTag) = 0
+      tokenCount = tagCount.sum
+      setLogPrTagGivenTag
+      setLogPrWordGivenTag
+      setLogPrNovelWord
       numWordsTraining = wordTagCount.length
-      tokenCount = tagCount.sum.toInt
+    }
 
+    def updateCounts(forwardPr: MatrixBufferDense[Double], backwardPr: MatrixBufferDense[Double]) = {
+      setLogPrTagGivenTag
+      setLogPrWordGivenTag
+      setLogPrNovelWord
+      throw new Exception("implementation incomplete")
+    }
+
+    def setLogPrNovelWord = {
       logPrNovelWord.padTill(numTags, math.log(0))
       for(tag<- (0 to numTags-1)) {
         var s = singletonWordsPerTag(tag)+ 1e-100
-        var x = (s/(tokenCount + numWordsTraining + 1).toDouble)/(s + tagCount(tag).toDouble)
+        var x = (s/(tokenCount + numWords + 1).toDouble)/(s + tagCount(tag).toDouble)
         logPrNovelWord(tag) = math.log(x)
       }
-
     }
 
     //  Confidence in correctness: High.
     //  Reason: Well tested.
-    def getLogPrTagGivenTag : MatrixBufferDense[Double]= {
-      var logPrTagGivenTag = new MatrixBufferDense[Double](numTags, numTags)
-
+    def setLogPrTagGivenTag = {
       for(tag1 <- (0 to numTags-1); tag2 <- (0 to numTags-1)) {
         var s = tagBeforeTagCount(tag2).count(x => x==1) + 1e-100
         var x = (tagBeforeTagCount(tag2, tag1) + s*tagCount(tag1)/tokenCount.toDouble)/(tagBeforeTagCount(tag2).sum + s).toDouble
         logPrTagGivenTag(tag1, tag2) = math.log(x)
   //       println(tag1 + "|" + tag2+ " = " + x)
       }
-      logPrTagGivenTag
     }
 
   //  Confidence in correctness: High.
   //  Reason: Well tested.
-    def getLogPrWordGivenTag : MatrixBufferDense[Double]= {
+    def setLogPrWordGivenTag = {
       for(tag <- (0 to numTags-1); word <- (0 to numWords -1)) {
         var s = singletonWordsPerTag(tag)+ 1e-100
-        var x = (wordTagCount(word, tag) + s*(wordTagCount(word).sum + 1)/(tokenCount + numWordsTraining + 1).toDouble)/(s + tagCount(tag).toDouble)
+        var x = (wordTagCount(word, tag) + s*(wordTagCount(word).sum + 1)/(tokenCount + numWords + 1).toDouble)/(s + tagCount(tag).toDouble)
         logPrWordGivenTag(word, tag) = math.log(x)
       }
-      logPrWordGivenTag
+    }
+    def possibleTags(token: Int) = {
+      (0 to numTags-1).filter(x =>
+        if(token< numWordsTraining)
+          wordTagCount(token, x)>0
+        else x!= sentenceSepTag)
     }
   }
 
@@ -112,9 +132,7 @@ Correctly updates the following:
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def train(iter: Iterator[Array[String]]) = {
-    dataCounts.updateCounts(iter)
-    logPrTagGivenTag = dataCounts.getLogPrTagGivenTag
-    logPrWordGivenTag = dataCounts.getLogPrWordGivenTag
+    wordTagStatsFinal.updateCounts(iter)
 //    println(logPrTagGivenTag.toString)
 //    println(logPrWordGivenTag.toString)
   }
@@ -124,7 +142,7 @@ Correctly updates the following:
   def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
     val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
     val numTokens = testData.length
-    val numTags = dataCounts.numTags;
+    val numTags = wordTagStatsFinal.numTags;
     var resultPair = new ArrayBuffer[Array[Boolean]](numTokens)
     resultPair = resultPair.padTo(numTokens, null)
     
@@ -134,14 +152,15 @@ Correctly updates the following:
     logPrSequence(0, sentenceSepTag) = math.log(1)
     for{tokenNum <- 1 to numTokens;
         token = testData(tokenNum-1)(0)
-        tag <- (0 to numTags-1).filter(x => if(token< numWordsTraining)dataCounts.wordTagCount(token, x)>0 else x!= sentenceSepTag)
+        tag <- wordTagStatsFinal.possibleTags(token)
     }{
       var logPrW = logPrNovelWord(tag)
-      if(token < numWordsTraining) logPrW = logPrWordGivenTag(token, tag)
+      if(token < numWordsTraining)
+        logPrW = logPrWordGivenTag(token, tag)
       var logPrJ = matrixMath.vp(logPrSequence(tokenNum-1), logPrW)
 //      Ensure that perplexity is not affected by empty sentences.
       if(!(bSeekSentence && token==sentenceSepWord))
-      logPrJ = matrixMath.vp(logPrJ, logPrTagGivenTag(tag))
+        logPrJ = matrixMath.vp(logPrJ, logPrTagGivenTag(tag))
       logPrSequence(tokenNum, tag) = logPrJ.max
       bestPrevTag(tokenNum, tag) = logPrJ.indexOf(logPrSequence(tokenNum, tag))
 

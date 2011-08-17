@@ -27,6 +27,7 @@ trait Tagger {
 
   def getTagStr(tag: Int) = tagIntMap.getKey(tag).get
   def getWordStr(word: Int) = wordIntMap.getKey(word).get
+  def numTags = tagIntMap.size
 
 //  Confidence in correctness: High.
 //  Reason: Well tested.
@@ -39,7 +40,7 @@ trait Tagger {
 //        var wordId = testData(i)(0)
 //        var tagId = testData(i)(1)
 
-
+  def processUntaggedData(lstTokens : ArrayBuffer[String]) = {}
   def train(iter: Iterator[Array[String]])
   def test(testData: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]]
 }
