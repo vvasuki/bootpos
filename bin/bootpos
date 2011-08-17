@@ -23,7 +23,8 @@ cat <<EOF
 Bootpos 0.1 commands: 
 
   build         build Bootpos with SBT
-  config  	run Bootpos on the specified config file
+  config        run Bootpos on the specified config file
+  test        run some unit-tests.
   run           run the main method of a given class
 
 Include --help with any option for more information
@@ -39,7 +40,8 @@ else
     CLASS=
 
     case $CMD in
-	config) CLASS=opennlp.bootpos.app.BootPos;;
+  config) CLASS=opennlp.bootpos.app.BootPos;;
+  test) CLASS=opennlp.bootpos.app.BootPosTest;;
 	run) CLASS=$1; shift;;
 	help) help; exit 1;;
 	*) echo "Unrecognized command: $CMD"; help; exit 1;;

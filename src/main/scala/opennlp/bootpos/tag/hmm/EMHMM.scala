@@ -1,59 +1,143 @@
 package opennlp.bootpos.tag.hmm
 
 import opennlp.bootpos.tag._
+import opennlp.bootpos.app._
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.LinkedList
 import opennlp.bootpos.util.collection._
 import opennlp.bootpos.util._
 
+class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAGNUM_IN, WORDNUM_IN){
+
+/*
+  Purpose:
+      0. Execute forward/ backward algorithm.
+      1. Update wordTagCount, tagBeforeTagCount, tagCount, tokenCount
+      2. Update: logPrTagGivenTag logPrWordGivenTag logPrNovelWord
+  Confidence: Moderate.
+  Reason: See comments below.
+*/
+  def updateCounts(text: ArrayBuffer[Int], hmm: EMHMM) = {
+    val numTokens = text.length
+    val sentenceSepTag = hmm.sentenceSepTag
+
+    val forwardPr = hmm.getForwardPr(text)
+    val backwardPr = hmm.getBackwardPr(text)
+    val numTokensUntagged = forwardPr.length
+    val wordTagStatsFinal = hmm.wordTagStatsFinal
+
+//       Note: tokenCount updated.
+    tokenCount = tokenCount + numTokensUntagged
+
+    val prTokens = forwardPr(numTokensUntagged-1, sentenceSepTag)
+
+/*      Claim: wordTagCount, tagCount correctly updated below.
+    Confidence: Moderate.
+    Reason: Not sure whether underflow errors occur.
+      Otherwise proved correct.
+      May need to verify tagCount.*/
+    for{i <- 1 to numTokens-1
+      token = text(i)
+      tag <- wordTagStatsFinal.possibleTags(token, hmm)
+    }{
+      val prTag = forwardPr(i, tag) + backwardPr(i, tag) - prTokens
+      wordTagCount(token, tag) = wordTagCount(token, tag) + math.exp(prTag)
+      tagCount(tag) = tagCount(tag) + math.exp(prTag)
+    }
+
+/*
+    Claim: tagBeforeTagCount correctly updated below.
+    Confidence: Moderate.
+    Reason: Not sure whether underflow errors occur.
+      Otherwise proved correct.*/
+    for{i <- 1 to numTokens-1
+      token = text(i)
+      tag <- wordTagStatsFinal.possibleTags(token, hmm)
+      prevTag <- wordTagStatsFinal.possibleTags(text(i-1), hmm)
+    }{
+      val prTagPair = forwardPr(i-1, prevTag) + backwardPr(i, tag) - prTokens + hmm.getArcPr(tag, prevTag, token)
+      tagBeforeTagCount(prevTag, tag) = tagBeforeTagCount(prevTag, tag) + math.exp(prTagPair)
+    }
+
+    println(this)
+
+    setLogPrTagGivenTag(hmm)
+    setLogPrWordGivenTag(hmm)
+    setLogPrNovelWord(hmm)
+  }
+
+}
+
 class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(sentenceSepTagStr, sentenceSepWordStr){
   var numWordsSeen = 0
+  override val wordTagStatsFinal = new WordTagStatsProb(TAGNUM_IN, WORDNUM_IN)
+  
+/*
+  Purpose:
+    1. Update numWordsSeen.
+    1.5 Execute EM algorithm.
+    2. Update: logPrTagGivenTag logPrWordGivenTag logPrNovelWord
+  Confidence: Moderate.
+  Reason: See comments for updateCounts. Otherwise proved correct.
+*/
   override def processUntaggedData(textIn: ArrayBuffer[String]) = {
     val text = textIn.map(x => getWordId(x))
     numWordsSeen = wordIntMap.size
-    val numIterations = 3
+    val numIterations = BootPos.numIterations
+    println(wordTagStatsFinal)
+    println(this)
     for(i <- 1 to numIterations){
       val wordTagStats = reflectionUtil.deepCopy(wordTagStatsFinal)
-      val forwardPr = getForwardPr(text)
-      val backwardPr = getBackwardPr(text)
-      wordTagStats.updateCounts(forwardPr, backwardPr)
+      wordTagStats.updateCounts(text, this)
+      println(this)
     }
-    
   }
-
-//   Assumes that the first and last tokens are equal to sentenceSepWordStr
+  
+/*
+  Assumes that the first and last tokens are equal to sentenceSepWordStr
+  @return forwardPr.
+  Confidence: High
+  Reason: Proved correct.
+  */
   def getForwardPr(text: ArrayBuffer[Int]): MatrixBufferDense[Double] = {
     val numTokens = text.length
-    val forwardPr = new MatrixBufferDense[Double](numTokens, numTags, -Double.NegativeInfinity)
-    forwardPr(0, sentenceSepTag) = 1
+    val forwardPr = new MatrixBufferDense[Double](numTokens, numTags, math.log(0), bSetInitSize = true)
+    forwardPr(0, sentenceSepTag) = math.log(1)
     for{i <- 1 to numTokens-1
       token = text(i)
-      tag <- wordTagStatsFinal.possibleTags(token)
-      prevTag <- wordTagStatsFinal.possibleTags(text(i-1))
+      tag <- wordTagStatsFinal.possibleTags(token, this)
+      prevTag <- wordTagStatsFinal.possibleTags(text(i-1), this)
     }
     {
       // transition probability given prior tokens
-      val transitionPr = forwardPr(token-1, prevTag) + getArcPr(tag, prevTag, token)
-      forwardPr(token, tag) = mathUtil.logAdd(forwardPr(token, tag), transitionPr)
+      // println("i "+i + " token "+token + " prevTag "+ prevTag)
+      val transitionPr = forwardPr(i-1, prevTag) + getArcPr(tag, prevTag, token)
+      forwardPr(i, tag) = mathUtil.logAdd(forwardPr(i, tag), transitionPr)
     }
+    println(forwardPr.map(math.exp(_)))
     forwardPr
   }
 
-//   Assumes that the first and last tokens are equal to sentenceSepWordStr
+/*
+  Assumes that the first and last tokens are equal to sentenceSepWordStr
+  @return backwardPr.
+  Confidence: High
+  Reason: Proved correct.
+  */
   def getBackwardPr(text: ArrayBuffer[Int]): MatrixBufferDense[Double] = {
     val numTokens = text.length
-    val backwardPr = new MatrixBufferDense[Double](numTokens, numTags, -Double.NegativeInfinity)
-    backwardPr(numTokens-1, sentenceSepTag) = 1
+    val backwardPr = new MatrixBufferDense[Double](numTokens, numTags, math.log(0), bSetInitSize = true)
+    backwardPr(numTokens-1, sentenceSepTag) = math.log(1)
     for{i <- numTokens-1 to 1 by -1
       token = text(i)
-      tag <- wordTagStatsFinal.possibleTags(token)
-      prevTag <- wordTagStatsFinal.possibleTags(text(i-1))
+      tag <- wordTagStatsFinal.possibleTags(token, this)
+      prevTag <- wordTagStatsFinal.possibleTags(text(i-1), this)
     }
     {
       // transition probability given succeeding tokens
-      val transitionPr = backwardPr(token, prevTag) + getArcPr(tag, prevTag, token)
-      backwardPr(token-1, tag) = mathUtil.logAdd(backwardPr(token-1, tag), transitionPr)
+      val transitionPr = backwardPr(i, tag) + getArcPr(tag, prevTag, token)
+      backwardPr(i-1, prevTag) = mathUtil.logAdd(backwardPr(i-1, prevTag), transitionPr)
     }
     backwardPr
   }

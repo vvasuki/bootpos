@@ -1,5 +1,6 @@
 package opennlp.bootpos.util.collection
 
+import opennlp.bootpos.util._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.immutable.HashMap
 import java.util.NoSuchElementException
@@ -23,6 +24,10 @@ object matrixMath {
   }
 }
 
+/*
+Extends ArrayBuffer, so that it has some special methods.
+This buffer automatically grows to the required size when updated.
+*/
 class ExpandingArray[T](lengthIn: Int, defaultValue: T = null.asInstanceOf[T])  extends ArrayBuffer[T](lengthIn)
 with GenericTraversableTemplate[T, ExpandingArray]
      with BufferLike[T, ExpandingArray[T]]
@@ -33,7 +38,7 @@ with GenericTraversableTemplate[T, ExpandingArray]
   override def companion: GenericCompanion[ExpandingArray] = ExpandingArray
   override def result: ExpandingArray[T] = this
   def this(v: Seq[T]) = {this(v.length);  ++=(v)}
-  override def stringPrefix: String = "ExpandingArray"
+  override def stringPrefix: String = "ExpArr"
 
 
 //  Confidence in correctness: High.
@@ -71,15 +76,35 @@ object collectionsTest{
     var z = matrixMath.vp(x,y)
     println(matrixMath.vp(z, 90))
   }
+
+  def serializabilityTest = {
+    var x = new ExpandingArray[Double](4)
+    x ++= List(1, 2, 3, 4)
+    var z1 = reflectionUtil.deepCopy(x)
+    z1(2) = 2*z1(2)
+    println(z1)
+    var m = new MatrixBufferDense[Double](2, 2, 50)
+    m(2, 2) = 100
+    println(m)
+    var m1 = reflectionUtil.deepCopy(m)
+    m1(1, 1) = 2*m1(1,1)
+    println(m1)
+    
+  }
 }
 
-abstract class MatrixBuffer[T, X](rowsIn: Int){
+/*
+Stores a matrix, with some special behavior:
+Its size is automatically increased to ensure update operations succeed.
+*/
+abstract class MatrixBuffer[T, X](rowsIn: Int, colsIn: Int, defaultValue: T = null.asInstanceOf[T], bSetInitSize: Boolean = false) extends Serializable{
   var matrix= new ExpandingArray[X](rowsIn)
 
 //  State variable indicating maximum size of any row.
 //  Confidence in correctness: High 
 //  Reason: Proved correct.
   var numCols = 0
+  if(bSetInitSize) updateSize(rowsIn, colsIn)
 
   def getEmptyRow: X
 
@@ -91,21 +116,38 @@ abstract class MatrixBuffer[T, X](rowsIn: Int){
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
   def length = matrix.length
+  def numRows = length
   def apply(row: Int, col: Int): T
   def update(row: Int, col: Int, value: T)
-  
+
+// Methods to update matrix size using default values as necessary.
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
-  override def toString(): String = matrix.toString
+  def updateSize(nRows:Int, nCols: Int) = {numCols = List(nCols, numCols).max;
+    padRows(nRows)}
+  def expandBuffer(row: Int, col: Int) =updateSize(row+1, col+1)
+
+//   def rowSum[X <: Seq[Double]] = matrix.map(_.sum)
+
+
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  override def toString(): String = matrix.toString.replace(matrix.stringPrefix, "\n")
 }
 
-class MatrixBufferDense[T] (rowsIn: Int, colsIn: Int, defaultValue: T = null.asInstanceOf[T]) extends MatrixBuffer[T, ExpandingArray[T]](rowsIn){
+class MatrixBufferDense[T] (rowsIn: Int, colsIn: Int, defaultValue: T = null.asInstanceOf[T], bSetInitSize: Boolean = false) extends MatrixBuffer[T, ExpandingArray[T]](rowsIn, colsIn, defaultValue, bSetInitSize){
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
   def apply(row: Int, col: Int): T = {
     matrix(row).padTill(numCols, defaultValue)
     matrix(row)(col)
+  }
+
+  def map [B] (f: (T) => B) = {
+    val m = new MatrixBufferDense[B](numRows, numCols, f(defaultValue), bSetInitSize = true)
+    m.matrix = matrix.map(_.map(f))
+    m
   }
 
 //  Confidence in correctness: High.
@@ -119,14 +161,6 @@ class MatrixBufferDense[T] (rowsIn: Int, colsIn: Int, defaultValue: T = null.asI
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
   def padAllRows = matrix.foreach(_.padTill(numCols))
-
-//  Confidence in correctness: High.
-//  Reason: Proved correct.
-  def expandBuffer(row: Int, col: Int) = {
-    padRows(row+1)
-    numCols = List(numCols, col+1).max
-    matrix(row).padTill(numCols, defaultValue)
-  }
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
@@ -145,7 +179,7 @@ class MatrixBufferDense[T] (rowsIn: Int, colsIn: Int, defaultValue: T = null.asI
 
 // Each row is a HashMap where keys are stored in a trie/ prefix tree. So excessive memory is not wasted in storing sparse data.
 // So each row is sparse.
-class MatrixBufferRowSparse[T] (rowsIn: Int, defaultValue: T = null.asInstanceOf[T]) extends MatrixBuffer[T, HashMap[Int, T]](rowsIn){
+class MatrixBufferRowSparse[T] (rowsIn: Int, colsIn: Int = 0, defaultValue: T = null.asInstanceOf[T], bSetInitSize: Boolean = false) extends MatrixBuffer[T, HashMap[Int, T]](rowsIn, colsIn, defaultValue, bSetInitSize){
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
@@ -159,13 +193,6 @@ class MatrixBufferRowSparse[T] (rowsIn: Int, defaultValue: T = null.asInstanceOf
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
   def getEmptyRow = new HashMap[Int, T]()
-
-//  Confidence in correctness: High.
-//  Reason: Proved correct.
-  def expandBuffer(row: Int, col: Int) = {
-    padRows(row+1)
-    numCols = List(numCols, col+1).max
-  }
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.

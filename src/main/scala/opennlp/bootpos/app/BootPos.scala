@@ -10,11 +10,12 @@ object BootPos {
   var bUseTrainingData = true; var bWiktionary = false;
   var language = ""; var corpus = ""; var taggerType = ""
   var DATA_DIR = ""
+  val props = new java.util.Properties
+  var numIterations = 1
 
 //  Read RUNTIME_SETTINGS_FILE and set parameters liek language, corpus etc..
   def readRuntimeSettings = {
     val file = new java.io.FileInputStream(RUNTIME_SETTINGS_FILE)
-    val props = new java.util.Properties
     props.load(file)
     file.close
     bUniversalTags = props.getProperty("bUniversalTags").toBoolean
@@ -24,6 +25,7 @@ object BootPos {
     corpus = props.getProperty("corpus")
     taggerType = props.getProperty("taggerType")
     DATA_DIR = props.getProperty("DATA_DIR")
+    numIterations = props.getProperty("numIterations").toInt
 
     if(bWiktionary) bUniversalTags = true;
     else bUseTrainingData = true;
@@ -36,15 +38,19 @@ object BootPos {
   
   /**
    * @param args the command line arguments:
-   *  args(0), if it exists, is assumed to be
+   *  args(0), if it exists, is assumed to be RUNTIME_SETTINGS_FILE
    *
    */
   def main(args: Array[String]): Unit = {
     if(args.length>0) RUNTIME_SETTINGS_FILE = args(0)
     readRuntimeSettings
 
-//    collectionsTest.vpTest()
     var wtp = new CorpusProcessor(language, corpus, taggerType).test
   }
-
+}
+object BootPosTest {
+  def main(args: Array[String]): Unit = {
+    collectionsTest.vpTest
+    collectionsTest.serializabilityTest
+  }
 }

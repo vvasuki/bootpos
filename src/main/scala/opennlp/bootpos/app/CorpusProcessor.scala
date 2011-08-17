@@ -189,7 +189,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //  Reason: Well tested.
   def getFileName(fileType: String): String = {
     var languageCorpusString = language;
-    val subDir = fileType.replace("raw", "test")
+    val subDir = fileType.replace("raw", "train")
     if(!corpus.equals("")) languageCorpusString = languageCorpusString + '/' + corpus
     var file = DATA_DIR + languageCorpusString + '/'+ subDir+'/' + languageCorpusString.replace("/", "_") + '_'+ fileType
     if(!corpus.equals("")) file = file + ".conll"

@@ -6,7 +6,7 @@ import scala.collection.mutable.LinkedList
 import java.util.NoSuchElementException
 import opennlp.bootpos.util.collection._
 
-trait Tagger {
+trait Tagger extends Serializable{
   val TAGNUM_IN = 25
   val WORDNUM_IN = 3000
   var bestTagsOverall = new LinkedList[Int]()
