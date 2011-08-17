@@ -9,11 +9,11 @@ import opennlp.bootpos.util.collection._
 import opennlp.bootpos.util._
 
 class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAGNUM_IN, WORDNUM_IN){
-  def prepareTableSizes(ws: WordTagStats) = {
-    wordTagCount.updateSize(ws.numWords, ws.numTags)
-    singletonWordsPerTag.padTill(ws.numTags)
-    tagBeforeTagCount .updateSize(ws.numTags, ws.numTags)
-    tagCount.padTill(ws.numTags)
+  def prepareTableSizes(numWords: Int, numTags: Int) = {
+    wordTagCount.updateSize(numWords, numTags)
+    singletonWordsPerTag.padTill(numTags)
+    tagBeforeTagCount .updateSize(numTags, numTags)
+    tagCount.padTill(numTags)
   }
 
 /*
@@ -41,6 +41,7 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
 
     val prTokens = forwardPr(numTokensUntagged-1, sentenceSepTag)
 
+    prepareTableSizes(hmm.numWordsTotal, wordTagStatsFinal.numTags)
 /*      Claim: wordTagCount, tagCount correctly updated below.
     Confidence: Moderate.
     Reason: Not sure whether underflow errors occur.
@@ -94,15 +95,19 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(s
     val text = textIn.map(x => getWordId(x))
     numWordsSeen = wordIntMap.size
     val numIterations = BootPos.numIterations
-    println("\n\nInitial counts:")
+    val bUseTrainingStats = true
+/*    println("\n\nInitial counts:")
     println(wordTagStatsFinal)
     println("\n\nInitial params:")
-    println(this)
+    println(this)*/
     for(i <- 1 to numIterations){
-//       val wordTagStats = reflectionUtil.deepCopy(wordTagStatsFinal)
+      var wordTagStats: WordTagStatsProb = null
+      if(!bUseTrainingStats)
+        wordTagStats = reflectionUtil.deepCopy(wordTagStatsFinal)
+      else{
+        wordTagStats = new WordTagStatsProb(TAGNUM_IN, WORDNUM_IN)
+      }
       println("Iteration: " + i)
-      val wordTagStats = new WordTagStatsProb(TAGNUM_IN, WORDNUM_IN)
-      wordTagStats.prepareTableSizes(wordTagStatsFinal)
       wordTagStats.updateCounts(text, this)
 /*      println("\n\nParams:")
       println(this)*/

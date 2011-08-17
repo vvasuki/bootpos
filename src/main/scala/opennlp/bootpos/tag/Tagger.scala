@@ -28,6 +28,7 @@ trait Tagger extends Serializable{
   def getTagStr(tag: Int) = tagIntMap.getKey(tag).get
   def getWordStr(word: Int) = wordIntMap.getKey(word).get
   def numTags = tagIntMap.size
+  def numWordsTotal = wordIntMap.size
 
 //  Confidence in correctness: High.
 //  Reason: Well tested.
