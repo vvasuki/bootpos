@@ -138,9 +138,9 @@ logPrTagGivenTag, due to its small size, should be precomputed.
 
   override def toString = {
     var str = ""
-    str = str + ("T|T " + logPrTagGivenTag)
-/*    str = str + ("W|T " + logPrWordGivenTag)
-    str = str + ("NW|T " + logPrNovelWord)*/
+    str = str + ("T|T " + logPrTagGivenTag.map(math.exp))
+    str = str + ("\nW|T " + logPrWordGivenTag.map(math.exp))
+//     str = str + ("NW|T " + logPrNovelWord.map(math.exp))
     str
   }
 

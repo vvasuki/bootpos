@@ -9,14 +9,23 @@ import opennlp.bootpos.util.collection._
 import opennlp.bootpos.util._
 
 class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAGNUM_IN, WORDNUM_IN){
+  def prepareTableSizes(ws: WordTagStats) = {
+    wordTagCount.updateSize(ws.numWords, ws.numTags)
+    singletonWordsPerTag.padTill(ws.numTags)
+    tagBeforeTagCount .updateSize(ws.numTags, ws.numTags)
+    tagCount.padTill(ws.numTags)
+  }
 
 /*
+  Example against which much of this code was verified:
+    http://comp.ling.utexas.edu/_media/courses/2008/fall/natural_language_processing/eisner-icecream-forwardbackward.xls
   Purpose:
       0. Execute forward/ backward algorithm.
       1. Update wordTagCount, tagBeforeTagCount, tagCount, tokenCount
       2. Update: logPrTagGivenTag logPrWordGivenTag logPrNovelWord
-  Confidence: Moderate.
-  Reason: See comments below.
+  Confidence: High.
+  Reason: Proved correct. Also verified with ic test data.
+    See comments below.
 */
   def updateCounts(text: ArrayBuffer[Int], hmm: EMHMM) = {
     val numTokens = text.length
@@ -60,7 +69,7 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
       tagBeforeTagCount(prevTag, tag) = tagBeforeTagCount(prevTag, tag) + math.exp(prTagPair)
     }
 
-    println(this)
+    // println(this)
 
     setLogPrTagGivenTag(hmm)
     setLogPrWordGivenTag(hmm)
@@ -85,12 +94,18 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(s
     val text = textIn.map(x => getWordId(x))
     numWordsSeen = wordIntMap.size
     val numIterations = BootPos.numIterations
+    println("\n\nInitial counts:")
     println(wordTagStatsFinal)
+    println("\n\nInitial params:")
     println(this)
     for(i <- 1 to numIterations){
-      val wordTagStats = reflectionUtil.deepCopy(wordTagStatsFinal)
+//       val wordTagStats = reflectionUtil.deepCopy(wordTagStatsFinal)
+      println("Iteration: " + i)
+      val wordTagStats = new WordTagStatsProb(TAGNUM_IN, WORDNUM_IN)
+      wordTagStats.prepareTableSizes(wordTagStatsFinal)
       wordTagStats.updateCounts(text, this)
-      println(this)
+/*      println("\n\nParams:")
+      println(this)*/
     }
   }
   
@@ -99,6 +114,7 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(s
   @return forwardPr.
   Confidence: High
   Reason: Proved correct.
+    Also, output verified on a test case.
   */
   def getForwardPr(text: ArrayBuffer[Int]): MatrixBufferDense[Double] = {
     val numTokens = text.length
@@ -115,7 +131,7 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(s
       val transitionPr = forwardPr(i-1, prevTag) + getArcPr(tag, prevTag, token)
       forwardPr(i, tag) = mathUtil.logAdd(forwardPr(i, tag), transitionPr)
     }
-    println(forwardPr.map(math.exp(_)))
+//     println(forwardPr.map(math.exp(_)))
     forwardPr
   }
 
@@ -124,6 +140,7 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(s
   @return backwardPr.
   Confidence: High
   Reason: Proved correct.
+    Also output verified on a test case.
   */
   def getBackwardPr(text: ArrayBuffer[Int]): MatrixBufferDense[Double] = {
     val numTokens = text.length
@@ -139,6 +156,7 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(s
       val transitionPr = backwardPr(i, tag) + getArcPr(tag, prevTag, token)
       backwardPr(i-1, prevTag) = mathUtil.logAdd(backwardPr(i-1, prevTag), transitionPr)
     }
+    // println(backwardPr.map(math.exp(_)))
     backwardPr
   }
 }
