@@ -102,7 +102,7 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(s
     println(this)*/
     for(i <- 1 to numIterations){
       var wordTagStats: WordTagStatsProb = null
-      if(!bUseTrainingStats)
+      if(bUseTrainingStats)
         wordTagStats = reflectionUtil.deepCopy(wordTagStatsFinal)
       else{
         wordTagStats = new WordTagStatsProb(TAGNUM_IN, WORDNUM_IN)
