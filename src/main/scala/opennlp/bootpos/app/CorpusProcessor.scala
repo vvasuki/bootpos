@@ -74,7 +74,7 @@ class TagMap(TAG_MAP_DIR: String, language: String, corpus: String) {
   val LANGUAGE_CODE_MAP = getClass.getResource("/lang/languageCodes.properties").getPath
   var languageCode = language
   // Deduce language code
-  var parser = new TextTableParser(file = LANGUAGE_CODE_MAP, separator = ' ', x =>x.length >= 2, lineMapFn = null)
+  var parser = new TextTableParser(file = LANGUAGE_CODE_MAP, separator = ' ', filterFnIn = x =>x.length >= 2, lineMapFn = null)
   var iter = parser.getRowIterator.filter((x) => x(1).equalsIgnoreCase(language))
   if(iter.hasNext)
     languageCode = (iter.next())(0)
@@ -153,6 +153,10 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   var bProcessUntaggedData = false
   var bIgnoreCase = true
 
+  var encoding = "UTF-8"
+  if(language == "cz")
+    encoding = "ISO-8859-15"
+
 
 
 //  Confidence in correctness: High.
@@ -230,7 +234,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     if(mode.equals(WIKTIONARY))
       filterFn = ((x:Array[String]) => ((x.length >= tagField+1) && x(0).equalsIgnoreCase(language)))
 
-    val parser = new TextTableParser(file = file, separator = sep, filterFnIn = filterFn, lineMapFn = lineMap(newSentenceLine))
+    val parser = new TextTableParser(file = file, encodingIn = encoding, separator = sep, filterFnIn = filterFn, lineMapFn = lineMap(newSentenceLine))
     parser.getFieldIterator(wordField, tagField).map(x => {
         var tag = x(1); var word = x(0);
         if(BootPos.bUniversalTags) tag = tagMap.getMappedTag(tag, word)
@@ -249,11 +253,12 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     val iter = getWordTagIteratorFromFile(mode)
 
     if(!mode.equals(TEST_DIR)) {
-      tagger.train(iter)
+      if(mode == WIKTIONARY) tagger.trainWithDictionary(iter)
+      else tagger.train(iter)
       if(bProcessUntaggedData){
         val untaggedDataFile = getFileName("raw")
         val tokens = new ArrayBuffer[String]()
-        tokens ++= new TextTableParser(file = untaggedDataFile, lineMapFn = lineMap()).getLines
+        tokens ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap()).getLines
         if(tokens.head != sentenceSepWord) tokens prepend sentenceSepWord
         if(tokens.last != sentenceSepWord) tokens += sentenceSepWord
         tagger.processUntaggedData(tokens)

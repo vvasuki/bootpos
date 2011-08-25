@@ -9,11 +9,17 @@ import opennlp.bootpos.util.collection._
 import opennlp.bootpos.util._
 
 class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAGNUM_IN, WORDNUM_IN){
+/*
+  Claim: Increases table sizes appropriately.
+  Confidence: High
+  Reason: Proved correct.
+*/
   def prepareTableSizes(numWords: Int, numTags: Int) = {
     wordTagCount.updateSize(numWords, numTags)
     singletonWordsPerTag.padTill(numTags)
-    tagBeforeTagCount .updateSize(numTags, numTags)
+    tagBeforeTagCount.updateSize(numTags, numTags)
     tagCount.padTill(numTags)
+    wordCount.padTill(numWords)
   }
 
 /*
@@ -36,17 +42,15 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
     val numTokensUntagged = forwardPr.length
     val wordTagStatsFinal = hmm.wordTagStatsFinal
 
-//       Note: tokenCount updated.
-    tokenCount = tokenCount + numTokensUntagged
-
     val prTokens = forwardPr(numTokensUntagged-1, sentenceSepTag)
 
     prepareTableSizes(hmm.numWordsTotal, wordTagStatsFinal.numTags)
-/*      Claim: wordTagCount, tagCount correctly updated below.
+/*
+    Claim: wordTagCount, tagCount correctly updated below.
     Confidence: Moderate.
     Reason: Not sure whether underflow errors occur.
       Otherwise proved correct.
-      May need to verify tagCount.*/
+*/
     for{i <- 1 to numTokens-1
       token = text(i)
       tag <- wordTagStatsFinal.possibleTags(token, hmm)
@@ -74,7 +78,6 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
 
     setLogPrTagGivenTag(hmm)
     setLogPrWordGivenTag(hmm)
-    setLogPrNovelWord(hmm)
   }
 
 }
@@ -96,6 +99,9 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(s
     numWordsSeen = wordIntMap.size
     val numIterations = BootPos.numIterations
     val bUseTrainingStats = true
+//     Note: wordCount updated using untagged data.
+    wordTagStatsFinal.updateWordCount(text, this)
+
 /*    println("\n\nInitial counts:")
     println(wordTagStatsFinal)
     println("\n\nInitial params:")
@@ -104,9 +110,8 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(s
       var wordTagStats: WordTagStatsProb = null
       if(bUseTrainingStats)
         wordTagStats = reflectionUtil.deepCopy(wordTagStatsFinal)
-      else{
+      else
         wordTagStats = new WordTagStatsProb(TAGNUM_IN, WORDNUM_IN)
-      }
       println("Iteration: " + i)
       wordTagStats.updateCounts(text, this)
 /*      println("\n\nParams:")
