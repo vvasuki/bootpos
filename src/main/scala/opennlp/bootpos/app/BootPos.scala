@@ -9,6 +9,7 @@ object BootPos {
   var bUniversalTags = false
   var bUseTrainingData = true; var bWiktionary = false;
   var language = ""; var corpus = ""; var taggerType = ""
+  var conllCorpora : List[String] = null
   var DATA_DIR = ""
   val props = new java.util.Properties
   var numIterations = 1
@@ -26,6 +27,7 @@ object BootPos {
     taggerType = props.getProperty("taggerType")
     DATA_DIR = props.getProperty("DATA_DIR")
     numIterations = props.getProperty("numIterations").toInt
+    conllCorpora = props.getProperty("conllCorpora").replace(" ", "").split(",").toList
 
     if(bWiktionary) bUniversalTags = true;
     else bUseTrainingData = true;

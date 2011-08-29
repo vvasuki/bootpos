@@ -2,8 +2,10 @@ package opennlp.bootpos.util.io
 import scala.io.Source
 
 class TextTableParser(file: String, encodingIn: String = "UTF-8", separator: Char = '\t', filterFnIn: Array[String] => Boolean = (x =>x.length >=1), lineMapFn : String => String = null){
-  println("Encoding: " + encodingIn)
-  val src = Source.fromFile(file, encodingIn)
+  
+  val src = if(encodingIn == null) Source.fromFile(file)
+    else {println("Encoding: " + encodingIn);
+      Source.fromFile(file, encodingIn)}
 
   def getLines: Iterator[String]={
     var lines = src.getLines()
@@ -22,6 +24,10 @@ class TextTableParser(file: String, encodingIn: String = "UTF-8", separator: Cha
 //    Reason: Used many times without problems.
   def getFieldIterator(fieldId1: Int, fieldId2: Int): Iterator[Array[String]] = {
     getRowIterator.map(x => Array(x(fieldId1), x(fieldId2)))
+  }
+
+  def getColumn(fieldId: Int = 0) = {
+    getRowIterator.map(x => x(fieldId))
   }
 
 //    Confidence in correctness: High

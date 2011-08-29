@@ -217,8 +217,10 @@ Correctly updates the following:
 //  Reason: Well tested.
   def train(iter: Iterator[Array[String]]) = {
     val lstData = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
+    println("tokens in training data: " + lstData.length)
     wordTagStatsFinal.updateCounts(lstData, this)
     numWordsTraining = numWordsTotal
+    println(wordTagStatsFinal)
 //    println(logPrTagGivenTag.toString)
 //    println(logPrWordGivenTag.toString)
   }
@@ -250,7 +252,7 @@ Correctly updates the following:
     val numTags = wordTagStatsFinal.numTags;
     var resultPair = new ArrayBuffer[Array[Boolean]](numTokens)
     resultPair = resultPair.padTo(numTokens, null)
-    
+
     var bestPrevTag = new MatrixBufferDense[Int](numTokens + 1, numTags)
     var logPrSequence = new MatrixBufferDense[Double](numTokens + 1, numTags, defaultValue=math.log(0))
     var bSeekSentence = true
@@ -274,7 +276,6 @@ Correctly updates the following:
     }
 
     val bestTags = new Array[Int](numTokens)
-
     bestTags(numTokens-1) = logPrSequence(numTokens).indexOf(logPrSequence(numTokens).max)
     resultPair(numTokens-1) = Array(testData(numTokens-1)(1) == bestTags(numTokens-1), testData(numTokens-1)(0) >= numWordsTraining)
     var perplexity = math.exp(-logPrSequence(numTokens, bestTags(numTokens-1))/numTokens)

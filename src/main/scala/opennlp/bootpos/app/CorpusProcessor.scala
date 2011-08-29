@@ -7,6 +7,7 @@ import opennlp.bootpos.util.io.TextTableParser
 import opennlp.bootpos.tag._
 import opennlp.bootpos.tag.hmm._
 import java.util.NoSuchElementException
+import java.io.File
 
 class TaggingResult {
   var numTestTokensKnown = 0
@@ -87,49 +88,55 @@ class TagMap(TAG_MAP_DIR: String, language: String, corpus: String) {
 
 //  Confidence in correctness: High.
 //  Reason: Well tested.
-  if(BootPos.bUniversalTags)  {
+  if(BootPos.bUniversalTags)  try {
     // Populate the tagMap by reading the appropriate file.
-    val parser = new TextTableParser(file = TAG_MAP_DIR + languageCode + "-" + corpus + ".map", filterFnIn = (x =>x.length >= 2), lineMapFn = (x => x.map(_.toUpper)))
+    var tagMapFile = TAG_MAP_DIR + languageCode + "-" + corpus + ".map"
+    
+    val parser = new TextTableParser(file = tagMapFile, filterFnIn = (x =>x.length >= 2), lineMapFn = (x => x.map(_.toUpper)))
     parser.getRowIterator.foreach(x => tagMap(x(0)) = x(1))
     tagMap.values.foreach(x => tagMap(x) = x)
 
   //  Add the universal tags themselves to the map.
     tagsUniversal.foreach(x => tagMap(x) = x)
 //    print(tagMap)
+  } catch {
+    case e: java.io.FileNotFoundException => println("Alert: no tag map found!" + e)
   }
 
+  /*
+  * Add mapping for a tag to the tag map by the following procedure:
+    1. Programmatically comparing with the universal tag set tags.
+    2. If 1 fails, set tagMap(tag) = tag.
+  * Assumption: There is no pre-existing mapping.
+  * Arguments: tagIn: the tag to be added.
+  *  word: A word corresponding to the tag; used for printing a helpful message.
+  */
+  //  Confidence in correctness: High.
+  //  Reason: Well tested.
+  def updateTagMap(tagIn: String, word: String): Unit= {
+    var tag = tagIn.map(_.toUpper)
+    if(tagMap.contains(tag)) throw new IllegalArgumentException("Mapping already exists")
+    var iter = tagsUniversal.filter(x => !(x.equals("X") || x.equals(".")))
+    for(tagUniversal <- iter) {
+      if(tag.indexOf(tagUniversal) != -1) {tagMap(tag) = tagUniversal; return}
+    }
+    //    Begin special cases.
+    // Mapping to universal tag sets.
+    //ADP - adpositions (prepositions and postpositions)
+    if(tag.indexOf("POSITION") != -1) {tagMap(tag) = "ADP"; return}
+    //X - other: foreign words, typos, abbreviations
+    if(tag.indexOf("ABBREV") != -1 || tag.indexOf("FOREIGN") != -1 || tag.indexOf("ACRONYM") != -1 || tag.indexOf("INITIAL") != -1) {tagMap(tag) = "X"; return}
+    //. - punctuation
+    if(tag.indexOf("PUNCTUAT") != -1) {tagMap(tag) = "X"; return}
+    if(tag.indexOf("PARTICLE") != -1) {tagMap(tag) = "PRT"; return}
+    if(tag.indexOf("ARTICLE") != -1) {tagMap(tag) = "DET"; return}
+    unmappedTags = unmappedTags+1
+    println("unmapped tag "+tag + " :word "+ word);
+    tagMap(tag) = tag;
+  }
 //  Confidence in correctness: High.
 //  Reason: Proved.
   def getMappedTag(tagIn1: String, word: String): String = {
-    /*
-     * Add mapping for a tag to the tag map.
-     * Assumption: There is no pre-existing mapping.
-     * Arguments: tagIn: the tag to be added.
-     *  word: A word corresponding to the tag; used for printing a helpful message.
-     */
-  //  Confidence in correctness: High.
-  //  Reason: Well tested.
-    def updateTagMap(tagIn: String, word: String): Unit= {
-      var tag = tagIn.map(_.toUpper)
-      if(tagMap.contains(tag)) throw new IllegalArgumentException("Mapping already exists")
-      var iter = tagsUniversal.filter(x => !(x.equals("X") || x.equals(".")))
-      for(tagUniversal <- iter) {
-        if(tag.indexOf(tagUniversal) != -1) {tagMap(tag) = tagUniversal; return}
-      }
-  //    Begin special cases
-  //ADP - adpositions (prepositions and postpositions)
-      if(tag.indexOf("POSITION") != -1) {tagMap(tag) = "ADP"; return}
-  //X - other: foreign words, typos, abbreviations
-      if(tag.indexOf("ABBREV") != -1 || tag.indexOf("FOREIGN") != -1 || tag.indexOf("ACRONYM") != -1 || tag.indexOf("INITIAL") != -1) {tagMap(tag) = "X"; return}
-  //. - punctuation
-      if(tag.indexOf("PUNCTUAT") != -1) {tagMap(tag) = "X"; return}
-      if(tag.indexOf("PARTICLE") != -1) {tagMap(tag) = "PRT"; return}
-      if(tag.indexOf("ARTICLE") != -1) {tagMap(tag) = "DET"; return}
-      unmappedTags = unmappedTags+1
-      println("unmapped tag "+tag + " :word "+ word);
-      tagMap(tag) = tag;
-    }
-
     var tag = tagIn1
     try{tag = tagMap(tag);}
     catch{case e => updateTagMap(tag, word)}
@@ -143,7 +150,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   val DATA_DIR = BootPos.DATA_DIR
   val TEST_DIR = "test"
   val TRAINING_DIR = "train"
-  val WIKTIONARY = DATA_DIR+"TEMP-S20110618.tsv"
+  val WIKTIONARY = "TEMP-S20110618.tsv"
 
   val sentenceSepTag = "###"
   val sentenceSepWord = "###"
@@ -154,8 +161,10 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   var bIgnoreCase = true
 
   var encoding = "UTF-8"
-  if(language == "cz")
-    encoding = "ISO-8859-15"
+  language match {
+    case "cz" => encoding = "ISO-8859-15"
+    case _ => encoding = null
+  }
 
 
 
@@ -192,15 +201,26 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def getFileName(fileType: String): String = {
+    if(fileType == WIKTIONARY)
+      return DATA_DIR + WIKTIONARY
     var languageCorpusString = language;
+    if(!corpus.equals(""))
+      languageCorpusString += '/' + corpus
+    var dir = DATA_DIR + languageCorpusString
+
     val subDir = fileType.replace("raw", "train")
-    if(!corpus.equals("")) languageCorpusString = languageCorpusString + '/' + corpus
-    var file = DATA_DIR + languageCorpusString + '/'+ subDir+'/' + languageCorpusString.replace("/", "_") + '_'+ fileType
-    if(!corpus.equals("")) file = file + ".conll"
-    else file = file.replace("_", "")
+    dir += '/'+ subDir + '/'
+//     println("dir: " + dir)
+//     println(new File(dir).list.toList)
+
+    val files = new File(dir).list.toList.filter(_ contains fileType)
+    val file = dir+files.head
     file
   }
 
+/*  Purpose: While processing lines read from a file,
+    replace empty lines with appropriate sentenceSeparator lines.
+    If necessary, capitalize the line.*/
   def lineMap(newSentenceLine: String = sentenceSepWord)(x:String)= {
     var y = x.trim;
     if(y.isEmpty()) y= newSentenceLine;
@@ -215,12 +235,15 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   def getWordTagIteratorFromFile(mode: String): Iterator[Array[String]] = {
 //      Determine wordField, tagField, sep
     val file = getFileName(mode)
+    
     var wordField = 1
     var tagField = 3;
     var sep = '\t'
     if(language.equals("danish")) tagField = 4
-    if(corpus.equals("")) {
-      wordField = 0; tagField = 1; sep = '/'
+    if(! (BootPos.conllCorpora contains corpus)) {
+      wordField = 0; tagField = 1;
+      if(List("", "hmm") contains corpus)
+        sep = '/'
     }
     if(mode.equals(WIKTIONARY))tagField = 2
 
@@ -251,6 +274,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     }
 
     val iter = getWordTagIteratorFromFile(mode)
+    
 
     if(!mode.equals(TEST_DIR)) {
       if(mode == WIKTIONARY) tagger.trainWithDictionary(iter)
@@ -258,7 +282,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
       if(bProcessUntaggedData){
         val untaggedDataFile = getFileName("raw")
         val tokens = new ArrayBuffer[String]()
-        tokens ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap()).getLines
+        tokens ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap()).getColumn(0)
         if(tokens.head != sentenceSepWord) tokens prepend sentenceSepWord
         if(tokens.last != sentenceSepWord) tokens += sentenceSepWord
         tagger.processUntaggedData(tokens)
@@ -267,7 +291,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     else {
       val testData = new ArrayBuffer[Array[String]](10000)
       iter.copyToBuffer(testData)
-      println(testData.length)
+      println("test tokens: " + testData.length)
       val results = tagger.test(testData)
       tagResults.processTaggingResults(results, testData, sentenceSepWord)
     }
