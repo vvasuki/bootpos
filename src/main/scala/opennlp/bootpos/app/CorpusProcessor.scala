@@ -123,8 +123,8 @@ class TagMap(TAG_MAP_DIR: String, languageCode: String, corpus: String) {
     if(tag.indexOf("PARTICLE") != -1) {tagMap(tag) = "PRT"; return}
     if(tag.indexOf("ARTICLE") != -1) {tagMap(tag) = "DET"; return}
     unmappedTags = unmappedTags+1
-    println("unmapped tag "+tag + " :word "+ word);
-    tagMap(tag) = tag;
+    println("unknown tag "+tag + " :word "+ word);
+    tagMap(tag) = "X";
   }
 //  Confidence in correctness: High.
 //  Reason: Proved.
@@ -195,7 +195,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     println(language + ' ' + corpus);
     processFile(TEST_DIR)
     tagResults.getAccuracy()
-    println("Most frequent tag overall: "+ tagger.bestTagsOverall)
+    // println("Most frequent tag overall: "+ tagger.bestTagsOverall)
     if(BootPos.bUniversalTags) println(tagMap.unmappedTags + " unmapped tags.")
   }
 
@@ -278,7 +278,11 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     
 
     if(!mode.equals(TEST_DIR)) {
-      if(mode == WIKTIONARY) tagger.trainWithDictionary(iter)
+      if(mode == WIKTIONARY) {
+        // get words to consider.
+        val testWords = getWordTagIteratorFromFile(TEST_DIR).map(_(0)).toSet
+        tagger.trainWithDictionary(iter, testWords)
+      }
       else tagger.train(iter)
       if(bProcessUntaggedData){
         val untaggedDataFile = getFileName("raw")

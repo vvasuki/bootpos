@@ -1,6 +1,7 @@
 package opennlp.bootpos.tag
 
 import scala.collection.mutable.HashMap
+import scala.collection.immutable.Set
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.LinkedList
 import java.util.NoSuchElementException
@@ -45,7 +46,7 @@ trait Tagger extends Serializable{
   def train(iter: Iterator[Array[String]])
   def test(testData: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]]
 
-  def trainWithDictionary(iter: Iterator[Array[String]]) = train(iter: Iterator[Array[String]])
+  def trainWithDictionary(iter: Iterator[Array[String]], wordSet: Set[String]) = train(iter: Iterator[Array[String]])
 }
 
 class WordTagProbabilities(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger {
@@ -57,9 +58,9 @@ class WordTagProbabilities(sentenceSepTagStr :String, sentenceSepWordStr: String
 
   //  Confidence in correctness: High.
   //  Reason: Well tested.
-    def getBestTagsFromArray(tf: ExpandingArray[Int]):LinkedList[Int] = {
-      new LinkedList[Int]() ++ tf.indices.filter((x) => (tf(x) == tf.max))
-    }
+  def getBestTagsFromArray(tf: ExpandingArray[Int]):LinkedList[Int] = {
+    new LinkedList[Int]() ++ tf.indices.filter((x) => (tf(x) == tf.max))
+  }
 
 
 //  Confidence in correctness: High.

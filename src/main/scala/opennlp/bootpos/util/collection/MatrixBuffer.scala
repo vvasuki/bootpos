@@ -127,7 +127,24 @@ abstract class MatrixBuffer[T, X](rowsIn: Int, colsIn: Int, defaultValue: T = nu
     padRows(nRows)}
   def expandBuffer(row: Int, col: Int) =updateSize(row+1, col+1)
 
-//   def rowSum[X <: Seq[Double]] = matrix.map(_.sum)
+  // def rowSums(implicit numeric: Numeric[T]) = matrix.map(_.sum)
+
+  
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def getCol(col: Int) = (0 to numRows-1).map(x => apply(x, col))
+
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def colSum(col: Int)(implicit numeric: Numeric[T]) = {
+    getCol(col).sum
+  }
+
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def colFold(z: T)(col: Int, op: (T, T) => T)(implicit numeric: Numeric[T]) = {
+    getCol(col).foldRight(z)(op)
+  }
 
 
 //  Confidence in correctness: High.
@@ -144,6 +161,8 @@ class MatrixBufferDense[T] (rowsIn: Int, colsIn: Int, defaultValue: T = null.asI
     matrix(row)(col)
   }
 
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
   def map [B] (f: (T) => B) = {
     val m = new MatrixBufferDense[B](numRows, numCols, f(defaultValue), bSetInitSize = true)
     m.matrix = matrix.map(_.map(f))

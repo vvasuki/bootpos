@@ -6,7 +6,6 @@ SCALA_LIB="$BOOTPOS_DIR/project/boot/scala-2.9.0/lib/scala-library.jar"
 CP=$BOOTPOS_DIR/target/classes:$BOOTPOS_DIR/src/main/resources:$JARS:$SCALA_LIB:$CLASSPATH
 
 echo $JARS
-
 if [ -z $JAVA_MEM_FLAG ] 
 then
     JAVA_MEM_FLAG=-Xmx2g

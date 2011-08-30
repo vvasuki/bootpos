@@ -10,19 +10,6 @@ import opennlp.bootpos.util._
 
 class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAGNUM_IN, WORDNUM_IN){
 /*
-  Claim: Increases table sizes appropriately.
-  Confidence: High
-  Reason: Proved correct.
-*/
-  def prepareTableSizes(numWords: Int, numTags: Int) = {
-    wordTagCount.updateSize(numWords, numTags)
-    singletonWordsPerTag.padTill(numTags)
-    tagBeforeTagCount.updateSize(numTags, numTags)
-    tagCount.padTill(numTags)
-    wordCount.padTill(numWords)
-  }
-
-/*
   Example against which much of this code was verified:
     http://comp.ling.utexas.edu/_media/courses/2008/fall/natural_language_processing/eisner-icecream-forwardbackward.xls
   Purpose:

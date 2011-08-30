@@ -2,6 +2,7 @@ package opennlp.bootpos.tag.hmm
 
 import opennlp.bootpos.tag._
 import scala.collection.mutable.HashMap
+import scala.collection.immutable.Set
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.LinkedList
 import opennlp.bootpos.util.collection._
@@ -27,6 +28,19 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   def numTags = tagCount.length;
 
 /*
+  Claim: Increases table sizes appropriately.
+  Confidence: High
+  Reason: Proved correct.
+*/
+  def prepareTableSizes(numWords: Int, numTags: Int) = {
+    wordTagCount.updateSize(numWords, numTags)
+    singletonWordsPerTag.padTill(numTags)
+    tagBeforeTagCount.updateSize(numTags, numTags)
+    tagCount.padTill(numTags)
+    wordCount.padTill(numWords)
+  }
+
+/*
   Assumption: The text does not contain too many empty sentences!
   Claim: wordCount updated correctly using text.
     logPrWordGivenTag recomputed.
@@ -36,6 +50,21 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   def updateWordCount(text: ArrayBuffer[Int], hmm: HMM) = {
     text.indices.foreach(x => wordCount.addAt(x, 1))
     setLogPrWordGivenTag(hmm)
+  }
+/*
+  Updates wordTagCount, tagCount, singleton-counts to ensure consistency.
+  Confidence: High
+  Reason: Well tested.
+*/
+  def incrementWordTagCounts(word: Int, tag: Int) = {
+    wordTagCount.increment(word, tag)
+    wordTagCount(word, tag) match {
+      case 1 => {singletonWordsPerTag.addAt(tag, 1)}
+      case 2 => {singletonWordsPerTag.addAt(tag, -1)}
+      case _ => {}
+    }
+    wordCount.addAt(word, 1)
+    tagCount.addAt(tag, 1)
   }
 
   /*
@@ -50,15 +79,8 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     for(fields <- lstData;
       tag = fields(1);
       word = fields(0)){
+      incrementWordTagCounts(word, tag)
 //      println(prevTag+ " t " + tag + " w "+ word)
-      wordTagCount.increment(word, tag)
-      wordTagCount(word, tag) match {
-        case 1 => {singletonWordsPerTag.addAt(tag, 1)}
-        case 2 => {singletonWordsPerTag.addAt(tag, -1)}
-        case _ => {}
-      }
-      wordCount.addAt(word, 1)
-      tagCount.addAt(tag, 1)
     }
   }
 
@@ -149,9 +171,9 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 
   override def toString = {
     var str = ("tagC " + tagCount)
-//     str = str + ("\n tagBefTag.rowSum " + tagBeforeTagCount.matrix.map(_.sum))
-//     str = str + ("\n tagBefTag " + tagBeforeTagCount) \
-    str = str + ("\n wrdTag " + wordTagCount)
+//     str +=("\n tagBefTag.rowSum " + tagBeforeTagCount.matrix.map(_.sum))
+//     str +=("\n tagBefTag " + tagBeforeTagCount) \
+//     str +=("\n wrdTag " + wordTagCount)
     str
   }
 
@@ -159,9 +181,6 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 }
 
 class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
-  val sentenceSepTag = getTagId(sentenceSepTagStr)
-  val sentenceSepWord = getWordId(sentenceSepWordStr)
-
 //   Probabilities are stored in log space to avoid underflow.
 // logPrTagGivenTag, due to its small size, should be precomputed.
   var logPrTagGivenTag = new MatrixBufferDense[Double](TAGNUM_IN, TAGNUM_IN)
@@ -176,6 +195,9 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
   var numWordsTraining = 0
 
   val wordTagStatsFinal = new WordTagStats(TAGNUM_IN, WORDNUM_IN)
+  val sentenceSepTag = getTagId(sentenceSepTagStr)
+  val sentenceSepWord = getWordId(sentenceSepWordStr)
+
 
 
 //   Confidence: High.
@@ -194,10 +216,15 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
 //   Confidence: High.
 //   Reason: Proved correct.
   override def toString = {
-    var str = ""
-    str = str + ("T|T " + logPrTagGivenTag.map(math.exp))
-    str = str + ("\nW|T " + logPrWordGivenTag.map(math.exp))
-//     str = str + ("NW|T " + logPrNovelWord.map(math.exp))
+    val randWord = (math.random * logPrWordGivenTag.length).toInt
+    val randTag = (math.random * logPrTagGivenTag.length).toInt
+    var str = "t="+randTag + " w="+randWord
+    str +=("\nT|T " + logPrTagGivenTag.map(math.exp))
+    str +=("\nW|T " + logPrWordGivenTag(randWord).map(math.exp))
+//     str +=("NW|T " + logPrNovelWord.map(math.exp))
+    str +=("\nT|T=t " + logPrTagGivenTag.getCol(randTag).map(math.exp).sum)
+    str += "\n sum T|T=t" + math.exp(logPrTagGivenTag.colFold(math.log(0))(randTag, mathUtil.logAdd))
+    str += "\n sum W|T=t" + mathUtil.logAdd(logPrWordGivenTag.colFold(math.log(0))(randTag, mathUtil.logAdd), logPrNovelWord(randTag))
     str
   }
 
@@ -219,8 +246,8 @@ Correctly updates the following:
     val lstData = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
     wordTagStatsFinal.updateCounts(lstData, this)
     numWordsTraining = numWordsTotal
-//    println(logPrTagGivenTag.toString)
-//    println(logPrWordGivenTag.toString)
+    println(wordTagStatsFinal)
+    println(this)
   }
 
 /*
@@ -235,18 +262,24 @@ Correctly updates the following:
 */
 //  Confidence in correctness: Low.
 //  Reason: Implementation incomplete.
-  override def trainWithDictionary(iter: Iterator[Array[String]]) = {
-    val lstData = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
+  override def trainWithDictionary(iter: Iterator[Array[String]], wordSet: Set[String] = null) = {
+    val lstData = iter.filter(x => if(wordSet != null)wordSet.contains(x(0)) else true).
+      map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
     wordTagStatsFinal.updateWordTagCount(lstData)
     logPrTagGivenTag = new MatrixBufferDense[Double](numTags, numTags, 1/numTags, true)
     wordTagStatsFinal.setLogPrWordGivenTag(this)
+    wordTagStatsFinal.incrementWordTagCounts(sentenceSepWord, sentenceSepTag)
+    numWordsTraining = numWordsTotal
     println("tokens in training data: " + lstData.length)
     println(wordTagStatsFinal)
+    println(this)
   }
   
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
+    println(wordTagStatsFinal)
+    println(this)
     val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
     val numTokens = testData.length
     val numTags = wordTagStatsFinal.numTags;
