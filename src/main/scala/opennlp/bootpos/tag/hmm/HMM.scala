@@ -223,7 +223,7 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
     str +=("\nW|T " + logPrWordGivenTag(randWord).map(math.exp))
 //     str +=("NW|T " + logPrNovelWord.map(math.exp))
     str +=("\nT|T=t " + logPrTagGivenTag.getCol(randTag).map(math.exp).sum)
-    str += "\n sum T|T=t" + math.exp(logPrTagGivenTag.colFold(math.log(0))(randTag, mathUtil.logAdd))
+    str += "\n sum T|T=t" + (logPrTagGivenTag.colFold(math.log(0))(randTag, mathUtil.logAdd))
     str += "\n sum W|T=t" + mathUtil.logAdd(logPrWordGivenTag.colFold(math.log(0))(randTag, mathUtil.logAdd), logPrNovelWord(randTag))
     str
   }
@@ -246,8 +246,8 @@ Correctly updates the following:
     val lstData = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
     wordTagStatsFinal.updateCounts(lstData, this)
     numWordsTraining = numWordsTotal
-    println(wordTagStatsFinal)
-    println(this)
+/*    println(wordTagStatsFinal)
+    println(this)*/
   }
 
 /*
@@ -261,12 +261,12 @@ Correctly updates the following:
   logPrWordGivenTag
 */
 //  Confidence in correctness: Low.
-//  Reason: Implementation incomplete.
+//  Reason: logPrTagGivenTag does not logSum to 0.
   override def trainWithDictionary(iter: Iterator[Array[String]], wordSet: Set[String] = null) = {
     val lstData = iter.filter(x => if(wordSet != null)wordSet.contains(x(0)) else true).
       map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
     wordTagStatsFinal.updateWordTagCount(lstData)
-    logPrTagGivenTag = new MatrixBufferDense[Double](numTags, numTags, 1/numTags, true)
+    logPrTagGivenTag = new MatrixBufferDense[Double](numTags, numTags, math.log(1/numTags.toDouble), true)
     wordTagStatsFinal.setLogPrWordGivenTag(this)
     wordTagStatsFinal.incrementWordTagCounts(sentenceSepWord, sentenceSepTag)
     numWordsTraining = numWordsTotal
