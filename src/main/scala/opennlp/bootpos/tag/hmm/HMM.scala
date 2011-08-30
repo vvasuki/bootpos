@@ -217,10 +217,8 @@ Correctly updates the following:
 //  Reason: Well tested.
   def train(iter: Iterator[Array[String]]) = {
     val lstData = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
-    println("tokens in training data: " + lstData.length)
     wordTagStatsFinal.updateCounts(lstData, this)
     numWordsTraining = numWordsTotal
-    println(wordTagStatsFinal)
 //    println(logPrTagGivenTag.toString)
 //    println(logPrWordGivenTag.toString)
   }
@@ -241,7 +239,9 @@ Correctly updates the following:
     val lstData = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
     wordTagStatsFinal.updateWordTagCount(lstData)
     logPrTagGivenTag = new MatrixBufferDense[Double](numTags, numTags, 1/numTags, true)
-    
+    wordTagStatsFinal.setLogPrWordGivenTag(this)
+    println("tokens in training data: " + lstData.length)
+    println(wordTagStatsFinal)
   }
   
 //  Confidence in correctness: High.

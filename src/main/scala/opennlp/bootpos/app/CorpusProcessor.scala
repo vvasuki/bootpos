@@ -67,19 +67,10 @@ class TaggingResult {
   }
 }
 
-class TagMap(TAG_MAP_DIR: String, language: String, corpus: String) {
+class TagMap(TAG_MAP_DIR: String, languageCode: String, corpus: String) {
   val tagMap = new HashMap[String, String]()
   
   var unmappedTags = 0
-
-  val LANGUAGE_CODE_MAP = getClass.getResource("/lang/languageCodes.properties").getPath
-  var languageCode = language
-  // Deduce language code
-  var parser = new TextTableParser(file = LANGUAGE_CODE_MAP, separator = ' ', filterFnIn = x =>x.length >= 2, lineMapFn = null)
-  var iter = parser.getRowIterator.filter((x) => x(1).equalsIgnoreCase(language))
-  if(iter.hasNext)
-    languageCode = (iter.next())(0)
-  println(languageCode)
 
   //X - other: foreign words, typos, abbreviations
   //ADP - adpositions (prepositions and postpositions)
@@ -122,6 +113,7 @@ class TagMap(TAG_MAP_DIR: String, language: String, corpus: String) {
     }
     //    Begin special cases.
     // Mapping to universal tag sets.
+    if(tag.indexOf("SYMBOL") != -1) {tagMap(tag) = "NOUN"; return}
     //ADP - adpositions (prepositions and postpositions)
     if(tag.indexOf("POSITION") != -1) {tagMap(tag) = "ADP"; return}
     //X - other: foreign words, typos, abbreviations
@@ -137,9 +129,11 @@ class TagMap(TAG_MAP_DIR: String, language: String, corpus: String) {
 //  Confidence in correctness: High.
 //  Reason: Proved.
   def getMappedTag(tagIn1: String, word: String): String = {
-    var tag = tagIn1
+    var tag = tagIn1.map(_.toUpper)
     try{tag = tagMap(tag);}
-    catch{case e => updateTagMap(tag, word)}
+    catch{
+      case e => updateTagMap(tag, word)
+    }
     return tag
   }
 
@@ -166,20 +160,27 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     case _ => encoding = null
   }
 
-
+  // Determine the full name of the language.
+    val LANGUAGE_CODE_MAP = getClass.getResource("/lang/languageCodes.properties").getPath
+    val props = new java.util.Properties
+    val file = new java.io.FileInputStream(LANGUAGE_CODE_MAP)
+    props.load(file)
+    file.close
+    val languageStr = props.getProperty(language, language)
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
   var tagger: Tagger = null
   taggerType match {
     case "OpenNLP" => {
-      tagger = new OpenNLP( tagMap.languageCode, sentenceSepTag, sentenceSepWord)
+      tagger = new OpenNLP( language, sentenceSepTag, sentenceSepWord)
       bIgnoreCase = false
     }
     case "HMM" => tagger = new HMM(sentenceSepTag, sentenceSepWord)
     case "EMHMM" => {
       tagger = new EMHMM(sentenceSepTag, sentenceSepWord)
       bProcessUntaggedData = true
+      bIgnoreCase = true
     }
     case "LabelPropagation" => tagger = new LabelPropagationTagger(sentenceSepTag, sentenceSepWord)
     case _ => tagger = new WordTagProbabilities(sentenceSepTag, sentenceSepWord)
@@ -224,8 +225,8 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   def lineMap(newSentenceLine: String = sentenceSepWord)(x:String)= {
     var y = x.trim;
     if(y.isEmpty()) y= newSentenceLine;
-    if(bIgnoreCase) y
-    else y.map(_.toUpper)
+    if(bIgnoreCase) y.map(_.toUpper)
+    else y
   }
 
 //    @return Iterator[Array[String]] whose elements are arrays of size 2, whose
@@ -240,12 +241,12 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     var tagField = 3;
     var sep = '\t'
     if(language.equals("danish")) tagField = 4
-    if(! (BootPos.conllCorpora contains corpus)) {
+    if(mode.equals(WIKTIONARY))tagField = 2
+    else if(! (BootPos.conllCorpora contains corpus)) {
       wordField = 0; tagField = 1;
       if(List("", "hmm") contains corpus)
         sep = '/'
     }
-    if(mode.equals(WIKTIONARY))tagField = 2
 
 
 //      Prepare a function to map empty lines to an empty sentence word/ token pair.
@@ -255,7 +256,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //      Prepare a function to filter the lines from the stream based on whether they have the right number of fields and language-tags.
     var filterFn = ((x:Array[String]) => (x.length >= tagField+1))
     if(mode.equals(WIKTIONARY))
-      filterFn = ((x:Array[String]) => ((x.length >= tagField+1) && x(0).equalsIgnoreCase(language)))
+      filterFn = ((x:Array[String]) => ((x.length >= tagField+1) && x(0).equalsIgnoreCase(languageStr)))
 
     val parser = new TextTableParser(file = file, encodingIn = encoding, separator = sep, filterFnIn = filterFn, lineMapFn = lineMap(newSentenceLine))
     parser.getFieldIterator(wordField, tagField).map(x => {
