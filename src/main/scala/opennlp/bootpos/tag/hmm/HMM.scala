@@ -159,6 +159,21 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     }
 
   }
+/*
+  Choose Pr(w \notin W) = dictionary.completeness.
+  Set Pr(w \notin W_t) = Pr(w \notin W)
+  Pr(w \in W|t) = Pr(w | w \in W_t) Pr(w \in W_t|t).
+  Smoothen this to allow small probability for
+  unobserved word tag associations.
+*/
+  def setLogPrWordGivenTag(hmm: HMM, dict: Dictionary) = {
+    hmm.logPrNovelWord.padTill(numTags, math.log(1 - dict.completeness))
+    for(word <- (0 to numWords-1); tag<- (0 to numTags-1)){
+      var x = dict.completeness*wordTagCount(word, tag)/tagCount(tag) + 1e-100
+      hmm.logPrWordGivenTag(word, tag) = math.log(x)
+    }
+  }
+
 
 //  Confidence in correctness: High.
 //  Reason: Well tested.
@@ -169,6 +184,9 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
       else x!= hmm.sentenceSepTag)
   }
 
+
+//  Confidence in correctness: High.
+//  Reason: Well tested.
   override def toString = {
     var str = ("tagC " + tagCount)
 //     str +=("\n tagBefTag.rowSum " + tagBeforeTagCount.matrix.map(_.sum))
@@ -215,6 +233,12 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
 
 //   Confidence: High.
 //   Reason: Proved correct.
+  def checkLogPrWGivenT(tag: Int) = {
+    mathUtil.logAdd(logPrWordGivenTag.colFold(math.log(0))(tag, mathUtil.logAdd), logPrNovelWord(tag))
+  }
+
+//   Confidence: High.
+//   Reason: Proved correct.
   override def toString = {
     val randWord = (math.random * logPrWordGivenTag.length).toInt
     val randTag = (math.random * logPrTagGivenTag.length).toInt
@@ -224,7 +248,7 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
 //     str +=("NW|T " + logPrNovelWord.map(math.exp))
     str +=("\nT|T=t " + logPrTagGivenTag.getCol(randTag).map(math.exp).sum)
     str += "\n sum T|T=t" + (logPrTagGivenTag.colFold(math.log(0))(randTag, mathUtil.logAdd))
-    str += "\n sum W|T=t" + mathUtil.logAdd(logPrWordGivenTag.colFold(math.log(0))(randTag, mathUtil.logAdd), logPrNovelWord(randTag))
+    str += "\n sum W|T=t" + checkLogPrWGivenT(randTag)
     str
   }
 
@@ -259,17 +283,37 @@ Correctly updates the following:
   logPrTagGivenTag
   logPrNovelWord
   logPrWordGivenTag
+  
+Problems to consider when creating an initial HMM model from a dictionary.
+1] The dictionary may be incomplete in two ways:
+  1a] There may be missing words.
+  1b] Even when a word is included, some potential parts of speech may not be mentioned.
+2] We have no word-sequence and tag-sequence information.
+
+Potential model:
+Let W be the set of words in the dictionary.
+Let W_t be the set of words with potential tag t.
+Pr(t_i|t_{i-1}) = Pr(t_i) - or perhaps just 1/numTags.
+  The latter choice may be preferable because it may
+  facilitate better learning of Pr(t_i|t_{i-1}) during EM.
+Model Pr(w \notin W) arbitrarily.
+Set Pr(w \notin W_t) = Pr(w \notin W)
+Pr(w \in W|t) = Pr(w | w \in W_t) Pr(w \in W_t|t).
+
+Tag count should be updated during HMM.
+Ensure EM iterations start with fresh counts when starting point has been deduced from a wiktionary.
 */
-//  Confidence in correctness: Low.
-//  Reason: logPrTagGivenTag does not logSum to 0.
-  override def trainWithDictionary(iter: Iterator[Array[String]], wordSet: Set[String] = null) = {
-    val lstData = iter.filter(x => if(wordSet != null)wordSet.contains(x(0)) else true).
-      map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
-    wordTagStatsFinal.updateWordTagCount(lstData)
-    logPrTagGivenTag = new MatrixBufferDense[Double](numTags, numTags, math.log(1/numTags.toDouble), true)
-    wordTagStatsFinal.setLogPrWordGivenTag(this)
-    wordTagStatsFinal.incrementWordTagCounts(sentenceSepWord, sentenceSepTag)
+//  Confidence in correctness: Medium.
+//  Reason: Seems to be fine.
+  override def trainWithDictionary(dictionary: Dictionary) = {
+    var lstData = dictionary.lstData.
+    map(x => Array(getWordId(x(0)), getTagId(x(1))))
     numWordsTraining = numWordsTotal
+    
+    wordTagStatsFinal.updateWordTagCount(lstData.toList)
+
+    logPrTagGivenTag = new MatrixBufferDense[Double](numTags, numTags, math.log(1/numTags.toDouble), true)
+    wordTagStatsFinal.setLogPrWordGivenTag(this, dictionary)
     println("tokens in training data: " + lstData.length)
     println(wordTagStatsFinal)
     println(this)

@@ -46,7 +46,7 @@ trait Tagger extends Serializable{
   def train(iter: Iterator[Array[String]])
   def test(testData: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]]
 
-  def trainWithDictionary(iter: Iterator[Array[String]], wordSet: Set[String]) = train(iter: Iterator[Array[String]])
+  def trainWithDictionary(dictionary: Dictionary) = train(dictionary.lstData.toIterator: Iterator[Array[String]])
 }
 
 class WordTagProbabilities(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger {

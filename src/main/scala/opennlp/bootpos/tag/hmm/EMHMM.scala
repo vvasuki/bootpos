@@ -69,7 +69,7 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
 
 }
 
-class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(sentenceSepTagStr, sentenceSepWordStr){
+class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingStats: Boolean = true) extends HMM(sentenceSepTagStr, sentenceSepWordStr){
   var numWordsSeen = 0
   override val wordTagStatsFinal = new WordTagStatsProb(TAGNUM_IN, WORDNUM_IN)
   
@@ -78,6 +78,9 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(s
     1. Update numWordsSeen.
     1.5 Execute EM algorithm.
     2. Update: logPrTagGivenTag logPrWordGivenTag logPrNovelWord
+    Ensure EM iterations start with fresh counts when
+    starting point has been deduced from a wiktionary.
+    
   Confidence: Moderate.
   Reason: See comments for updateCounts. Otherwise proved correct.
 */
@@ -85,7 +88,6 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends HMM(s
     val text = textIn.map(x => getWordId(x))
     numWordsSeen = wordIntMap.size
     val numIterations = BootPos.numIterations
-    val bUseTrainingStats = true
 //     Note: wordCount updated using untagged data.
     wordTagStatsFinal.updateWordCount(text, this)
 

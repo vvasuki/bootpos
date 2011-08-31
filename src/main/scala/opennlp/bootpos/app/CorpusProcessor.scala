@@ -2,7 +2,7 @@ package opennlp.bootpos.app
 
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
-import opennlp.bootpos.util.collection.BijectiveHashMap
+import opennlp.bootpos.util.collection._
 import opennlp.bootpos.util.io.TextTableParser
 import opennlp.bootpos.tag._
 import opennlp.bootpos.tag.hmm._
@@ -67,9 +67,11 @@ class TaggingResult {
   }
 }
 
-class TagMap(TAG_MAP_DIR: String, languageCode: String, corpus: String) {
+class TagMap(TAG_MAP_DIR: String, languageCode: String, corpus: String, sentenceSepTagIn: String = null) {
   val tagMap = new HashMap[String, String]()
-  
+  if(sentenceSepTagIn != null)
+    tagMap(sentenceSepTagIn) = sentenceSepTagIn
+
   var unmappedTags = 0
 
   //X - other: foreign words, typos, abbreviations
@@ -89,6 +91,7 @@ class TagMap(TAG_MAP_DIR: String, languageCode: String, corpus: String) {
 
   //  Add the universal tags themselves to the map.
     tagsUniversal.foreach(x => tagMap(x) = x)
+
 //    print(tagMap)
   } catch {
     case e: java.io.FileNotFoundException => println("Alert: no tag map found!" + e)
@@ -107,6 +110,7 @@ class TagMap(TAG_MAP_DIR: String, languageCode: String, corpus: String) {
   def updateTagMap(tagIn: String, word: String): Unit= {
     var tag = tagIn.map(_.toUpper)
     if(tagMap.contains(tag)) throw new IllegalArgumentException("Mapping already exists")
+
     var iter = tagsUniversal.filter(x => !(x.equals("X") || x.equals(".")))
     for(tagUniversal <- iter) {
       if(tag.indexOf(tagUniversal) != -1) {tagMap(tag) = tagUniversal; return}
@@ -150,7 +154,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   val sentenceSepWord = "###"
 
   var tagResults = new TaggingResult()
-  val tagMap = new TagMap(DATA_DIR+"universal_pos_tags.1.02/", language, corpus)
+  val tagMap = new TagMap(DATA_DIR+"universal_pos_tags.1.02/", language, corpus, sentenceSepTagIn = sentenceSepTag)
   var bProcessUntaggedData = false
   var bIgnoreCase = true
 
@@ -178,7 +182,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     }
     case "HMM" => tagger = new HMM(sentenceSepTag, sentenceSepWord)
     case "EMHMM" => {
-      tagger = new EMHMM(sentenceSepTag, sentenceSepWord)
+      tagger = new EMHMM(sentenceSepTag, sentenceSepWord, bUseTrainingStats = !BootPos.bWiktionary)
       bProcessUntaggedData = true
       bIgnoreCase = true
     }
@@ -278,19 +282,26 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     
 
     if(!mode.equals(TEST_DIR)) {
+      val untaggedDataFile = getFileName("raw")
+      val tokensUntagged = new ArrayBuffer[String]()
+
+      if(bProcessUntaggedData){
+        tokensUntagged ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap()).getColumn(0)
+        if(tokensUntagged.head != sentenceSepWord) tokensUntagged prepend sentenceSepWord
+        if(tokensUntagged.last != sentenceSepWord) tokensUntagged += sentenceSepWord
+      }
+      
       if(mode == WIKTIONARY) {
         // get words to consider.
         val testWords = getWordTagIteratorFromFile(TEST_DIR).map(_(0)).toSet
-        tagger.trainWithDictionary(iter, testWords)
+        val dict = new Dictionary(iter, testWords)
+        dict.addEntry(sentenceSepWord, sentenceSepTag)
+        dict.updateCompleteness(tokensUntagged)
+        tagger.trainWithDictionary(dict)
       }
       else tagger.train(iter)
       if(bProcessUntaggedData){
-        val untaggedDataFile = getFileName("raw")
-        val tokens = new ArrayBuffer[String]()
-        tokens ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap()).getColumn(0)
-        if(tokens.head != sentenceSepWord) tokens prepend sentenceSepWord
-        if(tokens.last != sentenceSepWord) tokens += sentenceSepWord
-        tagger.processUntaggedData(tokens)
+        tagger.processUntaggedData(tokensUntagged)
       }
     }
     else {
@@ -302,5 +313,5 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     }
 
   }
-
 }
+
