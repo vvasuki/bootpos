@@ -11,18 +11,18 @@ import opennlp.bootpos.util._
 class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 // The following are Double arrays because in case of EM-HMM, counts could be a non-integer.
 //   Purpose: To estimate Pr(tag(i)|tag(i-1))
-  val tagBeforeTagCount = new MatrixBufferDense[Double](TAGNUM_IN, TAGNUM_IN)
+  var tagBeforeTagCount = new MatrixBufferDense[Double](TAGNUM_IN, TAGNUM_IN)
 
 /*  Purpose: To estimate Pr(word)
   Property note: It is possible that wordCount.sum > tagCount.sum 
   due to the presence of untagged data.*/
-  val wordCount = new ExpandingArray[Double](WORDNUM_IN)
+  var wordCount = new ExpandingArray[Double](WORDNUM_IN)
 
 //   Purpose: To estimate Pr(word|tag)
-  val wordTagCount = new MatrixBufferDense[Double](WORDNUM_IN, TAGNUM_IN)
-  val singletonWordsPerTag = new ExpandingArray[Double](TAGNUM_IN)
+  var wordTagCount = new MatrixBufferDense[Double](WORDNUM_IN, TAGNUM_IN)
+  var singletonWordsPerTag = new ExpandingArray[Double](TAGNUM_IN)
 //   Property: tagCount(tag) = wordTagCount(:, tag)
-  val tagCount = new ExpandingArray[Double](TAGNUM_IN)
+  var tagCount = new ExpandingArray[Double](TAGNUM_IN)
 
   def numWords = wordCount.length
   def numTags = tagCount.length;
@@ -41,11 +41,11 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   }
 
   def scaleDown(p: Double) = {
-    wordTagCount.map(_ * p)
-    singletonWordsPerTag.map(_ * p)
-    tagBeforeTagCount.map(_ * p)
-    tagCount.map(_ * p)
-    wordCount.map(_ * p)
+    wordTagCount = wordTagCount.map(_ * p)
+    singletonWordsPerTag = singletonWordsPerTag.map(_ * p)
+    tagBeforeTagCount = tagBeforeTagCount.map(_ * p)
+    tagCount = tagCount.map(_ * p)
+    wordCount = wordCount.map(_ * p)
   }
 
 /*
@@ -183,13 +183,15 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   Pr(w \in W|t) = Pr(w | w \in W_t) Pr(w \in W_t|t).
   Smoothen this to allow small probability for
   unobserved word tag associations.
+  Confidence: High
+  Reason: Well tested.
 */
   def setLogPrWordGivenTag(hmm: HMM, dict: Dictionary) = {
     hmm.logPrNovelWord.padTill(numTags, math.log(1 - dict.completeness))
     val sentenceSepTag = hmm.sentenceSepTag
     hmm.logPrNovelWord(sentenceSepTag) = math.log(0)
     for(word <- (0 to numWords-1); tag<- (0 to numTags-1).filterNot(_ == sentenceSepTag)){
-      var x = (1 - hmm.logPrNovelWord(tag))*wordTagCount(word, tag)/tagCount(tag) + 1e-100
+      var x = (1 - math.exp(hmm.logPrNovelWord(tag)))*wordTagCount(word, tag)/tagCount(tag) + 1e-100
       hmm.logPrWordGivenTag(word, tag) = math.log(x)
     }
   }
@@ -209,8 +211,8 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 //  Reason: Well tested.
   override def toString = {
     val randTag = (math.random * numTags).toInt
-    var str = ""
-    str += "numTags "+ numTags + "numW "+ numWords
+    var str = "WTStats:"
+    str += "numTags "+ numTags + " numW "+ numWords
     str += "\nt="+randTag
     str += ("\ntagC " + tagCount.mkString(" "))
     str += ("\nwtC " + wordTagCount.colSums.mkString(" "))
@@ -222,6 +224,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     str += ("\n tagC(t) " + tagCount(randTag))
     str += ("\n wtC(:,t) " + wordTagCount.getCol(randTag).sum)
     }
+    str += "\n===\n"
     str
   }
 

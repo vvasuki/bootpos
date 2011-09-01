@@ -52,13 +52,15 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
   override def toString = {
     val randWord = (math.random * logPrWordGivenTag.numRows).toInt
     val randTag = (math.random * logPrTagGivenTag.numRows).toInt
-    var str = "t="+randTag + " w="+randWord
+    var str = "hmm:"
+    str += "\nt="+randTag + " w="+randWord
 /*    str +=("\nT|T " + logPrTagGivenTag.map(math.exp))
     str +=("\nW=w|T " + logPrWordGivenTag(randWord).map(math.exp))*/
 /*    str += "\n sum T|T=t " + (logPrTagGivenTag.colFold(math.log(0))(randTag, mathUtil.logAdd))
     str += "\n sum W|T=t " + checkLogPrWGivenT(randTag)*/
     str +=("\nNW|T " + logPrNovelWord)
     str +=("\nsum_W Pr(W|T)" + (0 to numTags-1).map(checkLogPrWGivenT(_)))
+    str += "\n===\n"
     str
   }
 
