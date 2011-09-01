@@ -27,7 +27,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
       prevToken = token
     }
     wordAfterWordMap(sentenceSepWord, sentenceSepWord) = 0
-    numTrainingWords = wordTagMap.length
+    numTrainingWords = wordTagMap.numRows
   }
 
 
@@ -67,7 +67,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //    Every (w, t) edge has the right weight.
     def makeEdges: ListBuffer[Edge] = {
       var edges = new ListBuffer[Edge]()
-      var numWords = wordAfterWordMap.length
+      var numWords = wordAfterWordMap.numRows
 
       for(word <- (0 to numWords -1)) {
   //      Add (w, p) edges

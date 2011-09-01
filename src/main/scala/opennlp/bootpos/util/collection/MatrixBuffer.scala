@@ -111,12 +111,12 @@ abstract class MatrixBuffer[T, X](rowsIn: Int, colsIn: Int, defaultValue: T = nu
 //  Confidence in correctness: High.
 //  Reason: Proved correct, well tested.
   def padRows(numRowsIn: Int) =
-    (length to numRowsIn-1).foreach((x) => matrix += (getEmptyRow))
+    (matrix.length to numRowsIn-1).foreach((x) => matrix += (getEmptyRow))
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
-  def length = matrix.length
-  def numRows = length
+  def numRows = matrix.length
+  def size = Array(numRows, numCols)
   def apply(row: Int, col: Int): T
   def update(row: Int, col: Int, value: T)
 
@@ -139,6 +139,10 @@ abstract class MatrixBuffer[T, X](rowsIn: Int, colsIn: Int, defaultValue: T = nu
   def colSum(col: Int)(implicit numeric: Numeric[T]) = {
     getCol(col).sum
   }
+
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def colSums(implicit numeric: Numeric[T]) = {(0 to numCols-1).map(colSum(_))}
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.

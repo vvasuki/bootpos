@@ -81,7 +81,7 @@ class WordTagProbabilities(sentenceSepTagStr :String, sentenceSepWordStr: String
   //  Confidence in correctness: High.
   //  Reason: Well tested.
     def getBestTag(word: Int):Int = {
-      if(word >= wordTagFrequencies.length)
+      if(word >= wordTagFrequencies.numRows)
             return  bestTagsOverall.head
       var tf = wordTagFrequencies(word)
       return getBestTagsFromArray(tf).head
@@ -91,7 +91,7 @@ class WordTagProbabilities(sentenceSepTagStr :String, sentenceSepWordStr: String
     testData.indices.foreach(i => {
         val wordId = testData(i)(0)
         val tagId = testData(i)(1)
-        val bNovel = wordId >= wordTagFrequencies.length
+        val bNovel = wordId >= wordTagFrequencies.numRows
         val bCorrect = getBestTag(testData(i)(0)) == tagId
         resultPair += Array(bCorrect, bNovel)
       })
