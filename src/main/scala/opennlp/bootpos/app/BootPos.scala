@@ -13,6 +13,7 @@ object BootPos {
   var DATA_DIR = ""
   val props = new java.util.Properties
   var numIterations = 1
+  var rawTokensLimit = 0
 
 //  Read RUNTIME_SETTINGS_FILE and set parameters liek language, corpus etc..
   def readRuntimeSettings = {
@@ -28,6 +29,7 @@ object BootPos {
     DATA_DIR = props.getProperty("DATA_DIR")
     numIterations = props.getProperty("numIterations").toInt
     conllCorpora = props.getProperty("conllCorpora").replace(" ", "").split(",").toList
+    rawTokensLimit = props.getProperty("rawTokensLimit").toInt
 
     if(bWiktionary) bUniversalTags = true;
     else bUseTrainingData = true;

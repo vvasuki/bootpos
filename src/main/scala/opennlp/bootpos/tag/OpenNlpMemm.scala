@@ -1,5 +1,6 @@
 package opennlp.bootpos.tag
 
+import opennlp.bootpos.util.io._
 import opennlp.tools.postag._
 import opennlp.tools.util._
 import opennlp.tools.util.model._
@@ -10,45 +11,6 @@ import scala.collection.immutable.Stream
 class OpenNLP(languageCode: String, sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
   val sentenceSepTag = getTagId(sentenceSepTagStr)
   val sentenceSepWord = getWordId(sentenceSepWordStr)
-  //  Warning: The implementation of reset does not behave as expected.
-  //  This is because of the difficulty in constructing a stream from a scala iterator.
-  //  This is by design: we think that reset() will not be called.
-  class TaggedSentenceStream(wordTagIter: Iterator[Array[String]]) extends ObjectStream[POSSample] {
-//    Supposed to equal one more than the maximum wordId found in wordTagIter so far by read().
-//    Confidence: High
-//    Reason: read() proved correct.
-
-//  Confidence: Low.
-//  Reason: Deliberately not well designed.
-//  We assume that the defined funcitonality is not required.
-    def close() = {println("TaggedSentenceStream.close")}
-
-//  Confidence: Low.
-//  Reason: Deliberately not well designed.
-//  We assume that the defined funcitonality is not required.
-//    @throws(classOf[java.io.IOException])
-    def reset() = {throw new java.io.IOException("Undefined operation.")}
-
-//  Returns:
-//    the next object or null to signal that the stream is exhausted.
-//  Side-effect:
-//    update wordIntMap appropriately.
-//  Confidence in correctness: High.
-//  Reason: Proved correct.
-    def read : POSSample = {
-      if(wordTagIter.isEmpty) return null
-
-      var words = new ArrayBuffer[String](20)
-      var tags = new ArrayBuffer[String](20)
-
-      wordTagIter.takeWhile(x => x(1) != sentenceSepTagStr).foreach(x => {
-          getWordId(x(0).map(_.toUpper)); // update wordIntMap.
-          words += x(0); tags += x(1)})
-//      println(words)
-//      println(tags)
-      new POSSample(words.toArray, tags.toArray)
-    }
-  }
 
 
   var model: POSModel = null
@@ -62,7 +24,11 @@ class OpenNLP(languageCode: String, sentenceSepTagStr :String, sentenceSepWordSt
 //    wordIntMap is updated correctly.
 //    model is set appropriately.
   def train(wordTagIter: Iterator[Array[String]]) = {
-    val sentenceStream = new TaggedSentenceStream(wordTagIter)
+  //    update wordIntMap appropriately.
+    val wordTagLst = wordTagIter.toList
+    wordTagLst.foreach(x => getWordId(x(0).map(_.toUpper))) // update wordIntMap.
+
+    val sentenceStream = new TaggedSentenceStream(wordTagLst.iterator, sentenceSepTagStr)
     val numIters = 100; val eventCutoff = 5
     model = POSTaggerME.train(languageCode.map(_.toLower), sentenceStream, ModelType.MAXENT,
       null, null, eventCutoff, numIters);
@@ -76,7 +42,10 @@ class OpenNLP(languageCode: String, sentenceSepTagStr :String, sentenceSepWordSt
     var resultPair = new ArrayBuffer[Array[Boolean]](numTokens + 1)
 
     val tagger = new POSTaggerME(model);
-    var sentenceStream = new TaggedSentenceStream(testData.iterator)
+  //    update wordIntMap appropriately.
+    testData.foreach(x => getWordId(x(0).map(_.toUpper))) // update wordIntMap.
+
+    var sentenceStream = new TaggedSentenceStream(testData.iterator, sentenceSepTagStr)
 
     var sample = sentenceStream.read
     while(sample != null){
@@ -100,7 +69,7 @@ class OpenNLP(languageCode: String, sentenceSepTagStr :String, sentenceSepWordSt
     // Reason: Proved correct.
     // Observed to yield same result as above.
     def openNLPEval = {
-      sentenceStream = new TaggedSentenceStream(testData.iterator)
+      sentenceStream = new TaggedSentenceStream(testData.iterator, sentenceSepTagStr)
       val evaluator =
           new POSEvaluator(new opennlp.tools.postag.POSTaggerME(model));
       System.out.print("Evaluating ... ");

@@ -294,7 +294,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
       if(mode == WIKTIONARY) {
         // get words to consider.
         val testWords = getWordTagIteratorFromFile(TEST_DIR).map(_(0)).toSet
-        val dict = new Dictionary(iter, testWords)
+        val dict = new Dictionary(iter, testWords ++ tokensUntagged)
         dict.addEntry(sentenceSepWord, sentenceSepTag)
         dict.updateCompleteness(tokensUntagged)
         tagger.trainWithDictionary(dict)

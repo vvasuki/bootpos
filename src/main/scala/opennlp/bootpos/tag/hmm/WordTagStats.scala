@@ -194,6 +194,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
       var x = (1 - math.exp(hmm.logPrNovelWord(tag)))*wordTagCount(word, tag)/tagCount(tag) + 1e-100
       hmm.logPrWordGivenTag(word, tag) = math.log(x)
     }
+    hmm.logPrWordGivenTag(hmm.sentenceSepWord, sentenceSepTag) = math.log(1)
   }
 
 

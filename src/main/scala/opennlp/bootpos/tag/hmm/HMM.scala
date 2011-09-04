@@ -58,8 +58,11 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
     str +=("\nW=w|T " + logPrWordGivenTag(randWord).map(math.exp))*/
 /*    str += "\n sum T|T=t " + (logPrTagGivenTag.colFold(math.log(0))(randTag, mathUtil.logAdd))
     str += "\n sum W|T=t " + checkLogPrWGivenT(randTag)*/
-    str +=("\nNW|T " + logPrNovelWord)
-    str +=("\nsum_W Pr(W|T)" + (0 to numTags-1).map(checkLogPrWGivenT(_)))
+//     str +=("\nNW|T " + logPrNovelWord)
+    str +=("\nsum_W Pr(W|T)" + (0 to numTags-1).
+      map(checkLogPrWGivenT(_)).filter(math.abs(_)> 1E-4))
+    str +=("\n T=### "+ logPrWordGivenTag.getCol(sentenceSepTag).filter(_ != Double.NegativeInfinity))
+    str +=("\n T=### "+ logPrNovelWord(sentenceSepTag))
     str += "\n===\n"
     str
   }
