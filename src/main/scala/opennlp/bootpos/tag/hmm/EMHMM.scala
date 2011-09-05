@@ -16,7 +16,7 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
   Purpose:
     1. Update numWordsSeen.
     1.5 Execute EM algorithm.
-    2. Update: logPrTagGivenTag logPrWordGivenTag logPrNovelWord
+    2. Update: logPrTGivenT logPrWGivenT logPrNovelWord
     Ensure EM iterations start with fresh counts when
     starting point has been deduced from a wiktionary.
     

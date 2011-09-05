@@ -51,13 +51,13 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 /*
   Assumption: The text does not contain too many empty sentences!
   Claim: wordCount updated correctly using text.
-    logPrWordGivenTag recomputed.
+    logPrWGivenT recomputed.
   Confidence: High
   Reason: Proved correct.
 */
   def updateWordCount(text: ArrayBuffer[Int], hmm: HMM) = {
     text.indices.foreach(x => wordCount.addAt(x, 1))
-    setLogPrWordGivenTag(hmm)
+    setLogPrWGivenT(hmm)
   }
 /*
   Updates wordTagCount, tagCount, singleton-counts to ensure consistency.
@@ -121,28 +121,28 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
       wordCount(sentenceSepWord) = wordCount(sentenceSepWord) - x
     }
 
-    setLogPrTagGivenTag(hmm)
-    setLogPrWordGivenTag(hmm)
+    setLogPrTGivenT(hmm)
+    setLogPrWGivenT(hmm)
   }
 
   //  Confidence in correctness: High.
   //  Reason: Well tested.
-  def setLogPrTagGivenTag(hmm: HMM) = {
+  def setLogPrTGivenT(hmm: HMM) = {
     val numTokens = tagCount.sum
     for(tag1 <- (0 to numTags-1); tag2 <- (0 to numTags-1)) {
       var s = tagBeforeTagCount(tag2).count(x => x==1) + 1e-100
       var x = (tagBeforeTagCount(tag2, tag1) + s*tagCount(tag1)/numTokens.toDouble)/(tagBeforeTagCount(tag2).sum + s).toDouble
-      hmm.logPrTagGivenTag(tag1, tag2) = math.log(x)
+      hmm.logPrTGivenT(tag1, tag2) = math.log(x)
 //       println(tag1 + "|" + tag2+ " = " + x)
     }
   }
 
   // Set Pr(t_i|t_{i-1}) = Pr(t_i).
-  def setLogPrTagGivenTagTC(hmm: HMM) = {
+  def setLogPrTGivenTTC(hmm: HMM) = {
     val numTokens = tagCount.sum
     for(tag1 <- (0 to numTags-1); tag2 <- (0 to numTags-1)) {
       var x = tagCount(tag1)/numTokens
-      hmm.logPrTagGivenTag(tag1, tag2) = math.log(x)
+      hmm.logPrTGivenT(tag1, tag2) = math.log(x)
 //       println(tag1 + "|" + tag2+ " = " + x)
     }
   }
@@ -151,7 +151,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 // Ensure that there is no smoothing for sentenceSepTag.
 //  Confidence in correctness: High.
 //  Reason: Proved Correct.
-  def setLogPrWordGivenTag(hmm: HMM) = {
+  def setLogPrWGivenT(hmm: HMM) = {
 //     First, calculate Pr(word)
 /*    NOte: It is possible that wordCount.sum is larger than tagCount.sum
     due to the presence of untagged data.
@@ -173,9 +173,9 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
       else
         x = s*prWord(word)
       x = x/(s + tagCount(tag).toDouble)
-      hmm.logPrWordGivenTag(word, tag) = math.log(x)
+      hmm.logPrWGivenT(word, tag) = math.log(x)
     }
-    hmm.logPrWordGivenTag(hmm.sentenceSepWord, sentenceSepTag) = math.log(1)
+    hmm.logPrWGivenT(hmm.sentenceSepWord, sentenceSepTag) = math.log(1)
 
     //  Confidence in correctness: High.
     //  Reason: Well tested.
@@ -196,15 +196,15 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   Confidence: High
   Reason: Well tested.
 */
-  def setLogPrWordGivenTag(hmm: HMM, dict: Dictionary) = {
+  def setLogPrWGivenT(hmm: HMM, dict: Dictionary) = {
     hmm.logPrNovelWord.padTill(numTags, math.log(1 - dict.completeness))
     val sentenceSepTag = hmm.sentenceSepTag
     hmm.logPrNovelWord(sentenceSepTag) = math.log(0)
     for(word <- (0 to numWords-1); tag<- (0 to numTags-1).filterNot(_ == sentenceSepTag)){
       var x = (1 - math.exp(hmm.logPrNovelWord(tag)))*wordTagCount(word, tag)/tagCount(tag) + 1e-100
-      hmm.logPrWordGivenTag(word, tag) = math.log(x)
+      hmm.logPrWGivenT(word, tag) = math.log(x)
     }
-    hmm.logPrWordGivenTag(hmm.sentenceSepWord, sentenceSepTag) = math.log(1)
+    hmm.logPrWGivenT(hmm.sentenceSepWord, sentenceSepTag) = math.log(1)
   }
 
 
@@ -249,7 +249,7 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
   Purpose:
       0. Execute forward/ backward algorithm.
       1. Update wordTagCount, tagBeforeTagCount, tagCount, tokenCount
-      2. Update: logPrTagGivenTag logPrWordGivenTag logPrNovelWord
+      2. Update: logPrTGivenT logPrWGivenT logPrNovelWord
   Confidence: High.
   Reason: Proved correct. Also verified with ic test data.
     1. See comments below.
@@ -297,8 +297,8 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
 
     println(this)
 
-    setLogPrTagGivenTag(hmm)
-    setLogPrWordGivenTag(hmm)
+    setLogPrTGivenT(hmm)
+    setLogPrWGivenT(hmm)
     println(hmm)
   }
 

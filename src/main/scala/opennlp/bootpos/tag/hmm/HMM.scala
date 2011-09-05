@@ -10,15 +10,15 @@ import opennlp.bootpos.util._
 
 class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
 //   Probabilities are stored in log space to avoid underflow.
-// logPrTagGivenTag, due to its small size, should be precomputed.
-  var logPrTagGivenTag = new MatrixBufferDense[Double](TAGNUM_IN, TAGNUM_IN)
+// logPrTGivenT, due to its small size, should be precomputed.
+  var logPrTGivenT = new MatrixBufferDense[Double](TAGNUM_IN, TAGNUM_IN)
 /*
-  Considerations in deciding whether to compute logPrWordGivenTag:
+  Considerations in deciding whether to compute logPrWGivenT:
   1. Test set may not contain many words seen in training set.
   2. We may want to avoid repeated computation for words which appear multiple times.
   My guess is that [2] outweighs [1].
 */
-  var logPrWordGivenTag = new MatrixBufferDense[Double](WORDNUM_IN, TAGNUM_IN, defaultValue = math.log(0))
+  var logPrWGivenT = new MatrixBufferDense[Double](WORDNUM_IN, TAGNUM_IN, defaultValue = math.log(0))
   var logPrNovelWord = new ExpandingArray[Double](TAGNUM_IN, defaultValue = math.log(0))
   var numWordsTraining = 0
 
@@ -30,38 +30,38 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
 
 //   Confidence: High.
 //   Reason: Proved correct.
-  def getPrWordGivenTag(word: Int, tag: Int) = {
-    if(word < logPrWordGivenTag.numRows) logPrWordGivenTag(word, tag)
+  def getPrWGivenT(word: Int, tag: Int) = {
+    if(word < logPrWGivenT.numRows) logPrWGivenT(word, tag)
     else logPrNovelWord(tag)
   }
 
 //   Confidence: High.
 //   Reason: Proved correct.
   def getArcPr(tag:Int, prevTag: Int, word: Int) = {
-    logPrTagGivenTag(tag, prevTag) + getPrWordGivenTag(word, tag)
+    logPrTGivenT(tag, prevTag) + getPrWGivenT(word, tag)
   }
 
 //   Confidence: High.
 //   Reason: Proved correct.
   def checkLogPrWGivenT(tag: Int) = {
-    mathUtil.logAdd(logPrWordGivenTag.colFold(math.log(0))(tag, mathUtil.logAdd), logPrNovelWord(tag))
+    mathUtil.logAdd(logPrWGivenT.colFold(math.log(0))(tag, mathUtil.logAdd), logPrNovelWord(tag))
   }
 
 //   Confidence: High.
 //   Reason: Proved correct.
   override def toString = {
-    val randWord = (math.random * logPrWordGivenTag.numRows).toInt
-    val randTag = (math.random * logPrTagGivenTag.numRows).toInt
+    val randWord = (math.random * logPrWGivenT.numRows).toInt
+    val randTag = (math.random * logPrTGivenT.numRows).toInt
     var str = "hmm:"
     str += "\nt="+randTag + " w="+randWord
-/*    str +=("\nT|T " + logPrTagGivenTag.map(math.exp))
-    str +=("\nW=w|T " + logPrWordGivenTag(randWord).map(math.exp))*/
-/*    str += "\n sum T|T=t " + (logPrTagGivenTag.colFold(math.log(0))(randTag, mathUtil.logAdd))
+/*    str +=("\nT|T " + logPrTGivenT.map(math.exp))
+    str +=("\nW=w|T " + logPrWGivenT(randWord).map(math.exp))*/
+/*    str += "\n sum T|T=t " + (logPrTGivenT.colFold(math.log(0))(randTag, mathUtil.logAdd))
     str += "\n sum W|T=t " + checkLogPrWGivenT(randTag)*/
 //     str +=("\nNW|T " + logPrNovelWord)
     str +=("\nsum_W Pr(W|T)" + (0 to numTags-1).
       map(checkLogPrWGivenT(_)).filter(math.abs(_)> 1E-4))
-    str +=("\n T=### "+ logPrWordGivenTag.getCol(sentenceSepTag).filter(_ != Double.NegativeInfinity))
+    str +=("\n T=### "+ logPrWGivenT.getCol(sentenceSepTag).filter(_ != Double.NegativeInfinity))
     str +=("\n T=### "+ logPrNovelWord(sentenceSepTag))
     str += "\n===\n"
     str
@@ -75,9 +75,9 @@ Correctly updates the following:
   wordIntMap, tagIntMap.
   numWordsTraining
   tagCount, wordTagCount, singletonWordsPerTag.
-  logPrTagGivenTag
+  logPrTGivenT
   logPrNovelWord
-  logPrWordGivenTag
+  logPrWGivenT
 */
 //  Confidence in correctness: High.
 //  Reason: Well tested.
@@ -95,9 +95,9 @@ Correctly updates the following:
   wordIntMap, tagIntMap.
   numWordsTraining
   tagCount, wordTagCount, singletonWordsPerTag.
-  logPrTagGivenTag
+  logPrTGivenT
   logPrNovelWord
-  logPrWordGivenTag
+  logPrWGivenT
   
 Problems to consider when creating an initial HMM model from a dictionary.
 1] The dictionary may be incomplete in two ways:
@@ -128,10 +128,10 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
     wordTagStatsFinal.updateWordTagCount(lstData.toList)
     val bUniformModelForTags = false
     if(bUniformModelForTags)
-      logPrTagGivenTag = new MatrixBufferDense[Double](numTags, numTags, math.log(1/numTags.toDouble), true)
+      logPrTGivenT = new MatrixBufferDense[Double](numTags, numTags, math.log(1/numTags.toDouble), true)
     else
-      wordTagStatsFinal.setLogPrTagGivenTagTC(this)
-    wordTagStatsFinal.setLogPrWordGivenTag(this, dictionary)
+      wordTagStatsFinal.setLogPrTGivenTTC(this)
+    wordTagStatsFinal.setLogPrWGivenT(this, dictionary)
     println("tokens in training data: " + lstData.length)
     println(wordTagStatsFinal)
     println(this)
@@ -156,11 +156,11 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
         token = testData(tokenNum-1)(0)
         tag <- wordTagStatsFinal.possibleTags(token, this)
     }{
-      val logPrW = getPrWordGivenTag(token, tag)
+      val logPrW = getPrWGivenT(token, tag)
       var logPrJ = matrixMath.vp(logPrSequence(tokenNum-1), logPrW)
 //      Ensure that perplexity is not affected by empty sentences.
       if(!(bSeekSentence && token==sentenceSepWord))
-        logPrJ = matrixMath.vp(logPrJ, logPrTagGivenTag(tag))
+        logPrJ = matrixMath.vp(logPrJ, logPrTGivenT(tag))
       logPrSequence(tokenNum, tag) = logPrJ.max
       bestPrevTag(tokenNum, tag) = logPrJ.indexOf(logPrSequence(tokenNum, tag))
 
