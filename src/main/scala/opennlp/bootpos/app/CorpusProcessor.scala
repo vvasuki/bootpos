@@ -197,7 +197,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     println(language + ' ' + corpus);
     
     tagResults = new TaggingResult()
-    val iter = getWordTagIteratorFromFile(mode)
+    val iter = getWordTagIteratorFromFile(TEST_DIR)
     val testData = new ArrayBuffer[Array[String]](10000)
     iter.copyToBuffer(testData)
     println("test tokens: " + testData.length)
@@ -279,6 +279,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def processFile(mode: String) = {
+    val iter = getWordTagIteratorFromFile(mode)
     val untaggedDataFile = getFileName("raw")
     val tokensUntagged = new ArrayBuffer[String]()
 
