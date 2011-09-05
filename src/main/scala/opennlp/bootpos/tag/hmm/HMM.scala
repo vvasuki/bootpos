@@ -111,8 +111,8 @@ Let W_t be the set of words with potential tag t.
 Pr(t_i|t_{i-1}) = Pr(t_i) - or perhaps just 1/numTags.
   The latter choice may be preferable because it may
   facilitate better learning of Pr(t_i|t_{i-1}) during EM.
-Model Pr(w \notin W) arbitrarily.
-Set Pr(w \notin W_t) = Pr(w \notin W)
+Model Pr(w \notin W) arbitrarily - or learn it using the dictionary and raw data.
+Set Pr(w \notin W_t|t) = Pr(w \notin W)
 Pr(w \in W|t) = Pr(w | w \in W_t) Pr(w \in W_t|t).
 
 Tag count should be updated during HMM.
@@ -126,8 +126,11 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
     numWordsTraining = numWordsTotal
     
     wordTagStatsFinal.updateWordTagCount(lstData.toList)
-
-    logPrTagGivenTag = new MatrixBufferDense[Double](numTags, numTags, math.log(1/numTags.toDouble), true)
+    val bUniformModelForTags = false
+    if(bUniformModelForTags)
+      logPrTagGivenTag = new MatrixBufferDense[Double](numTags, numTags, math.log(1/numTags.toDouble), true)
+    else
+      wordTagStatsFinal.setLogPrTagGivenTagTC(this)
     wordTagStatsFinal.setLogPrWordGivenTag(this, dictionary)
     println("tokens in training data: " + lstData.length)
     println(wordTagStatsFinal)

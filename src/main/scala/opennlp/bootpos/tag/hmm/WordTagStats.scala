@@ -137,6 +137,16 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     }
   }
 
+  // Set Pr(t_i|t_{i-1}) = Pr(t_i).
+  def setLogPrTagGivenTagTC(hmm: HMM) = {
+    val numTokens = tagCount.sum
+    for(tag1 <- (0 to numTags-1); tag2 <- (0 to numTags-1)) {
+      var x = tagCount(tag1)/numTokens
+      hmm.logPrTagGivenTag(tag1, tag2) = math.log(x)
+//       println(tag1 + "|" + tag2+ " = " + x)
+    }
+  }
+
 // ASSUMPTION: A 'seen word' cannot have an unobserved connection to a tag.
 // Ensure that there is no smoothing for sentenceSepTag.
 //  Confidence in correctness: High.
