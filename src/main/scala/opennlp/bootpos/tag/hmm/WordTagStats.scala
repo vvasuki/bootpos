@@ -138,7 +138,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   }
 
   // Set Pr(t_i|t_{i-1}) = Pr(t_i).
-  def setLogPrTGivenTTC(hmm: HMM) = {
+  def setLogPrTGivenTFromTCount(hmm: HMM) = {
     val numTokens = tagCount.sum
     for(tag1 <- (0 to numTags-1); tag2 <- (0 to numTags-1)) {
       var x = tagCount(tag1)/numTokens
@@ -200,8 +200,10 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     hmm.logPrNovelWord.padTill(numTags, math.log(1 - dict.completeness))
     val sentenceSepTag = hmm.sentenceSepTag
     hmm.logPrNovelWord(sentenceSepTag) = math.log(0)
+    
     for(word <- (0 to numWords-1); tag<- (0 to numTags-1).filterNot(_ == sentenceSepTag)){
-      var x = (1 - math.exp(hmm.logPrNovelWord(tag)))*wordTagCount(word, tag)/tagCount(tag) + 1e-100
+      var wtCnt= wordTagCount(word, tag)
+      var x = (1 - math.exp(hmm.logPrNovelWord(tag)))*wtCnt/tagCount(tag) + 1e-100
       hmm.logPrWGivenT(word, tag) = math.log(x)
     }
     hmm.logPrWGivenT(hmm.sentenceSepWord, sentenceSepTag) = math.log(1)

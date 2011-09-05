@@ -56,8 +56,8 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
     str += "\nt="+randTag + " w="+randWord
 /*    str +=("\nT|T " + logPrTGivenT.map(math.exp))
     str +=("\nW=w|T " + logPrWGivenT(randWord).map(math.exp))*/
-/*    str += "\n sum T|T=t " + (logPrTGivenT.colFold(math.log(0))(randTag, mathUtil.logAdd))
-    str += "\n sum W|T=t " + checkLogPrWGivenT(randTag)*/
+   str += "\n sum T|T=t " + (logPrTGivenT.colFold(math.log(0))(randTag, mathUtil.logAdd))
+//     str += "\n sum W|T=t " + checkLogPrWGivenT(randTag)
 //     str +=("\nNW|T " + logPrNovelWord)
     str +=("\nsum_W Pr(W|T)" + (0 to numTags-1).
       map(checkLogPrWGivenT(_)).filter(math.abs(_)> 1E-4))
@@ -130,9 +130,9 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
     if(bUniformModelForTags)
       logPrTGivenT = new MatrixBufferDense[Double](numTags, numTags, math.log(1/numTags.toDouble), true)
     else
-      wordTagStatsFinal.setLogPrTGivenTTC(this)
+      wordTagStatsFinal.setLogPrTGivenTFromTCount(this)
     wordTagStatsFinal.setLogPrWGivenT(this, dictionary)
-    println("tokens in training data: " + lstData.length)
+    println("tokens in dictionary data: " + lstData.length)
     println(wordTagStatsFinal)
     println(this)
   }

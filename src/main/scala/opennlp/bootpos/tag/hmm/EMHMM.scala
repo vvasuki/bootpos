@@ -45,6 +45,7 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
         Also it may not be desirable to totally forget things learned
         with either the trainingStats (which possibly is from a dictionary.)*/
         wordTagStats.scaleDown(1/wordTagStats.numWords.toDouble)
+        println("Not using training stats.")
         println(wordTagStats)
       }
       println("Iteration: " + i)

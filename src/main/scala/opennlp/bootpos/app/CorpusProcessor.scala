@@ -157,6 +157,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   val tagMap = new TagMap(DATA_DIR+"universal_pos_tags.1.02/", language, corpus, sentenceSepTagIn = sentenceSepTag)
   var bProcessUntaggedData = false
   var bIgnoreCase = true
+  val bTrainingDataAsDictionary = true
 
   var encoding = "UTF-8"
   language match {
@@ -182,7 +183,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     }
     case "HMM" => tagger = new HMM(sentenceSepTag, sentenceSepWord)
     case "EMHMM" => {
-      tagger = new EMHMM(sentenceSepTag, sentenceSepWord, bUseTrainingStats = !BootPos.bWiktionary)
+      tagger = new EMHMM(sentenceSepTag, sentenceSepWord, bUseTrainingStats = !(BootPos.bWiktionary || bTrainingDataAsDictionary))
       bProcessUntaggedData = true
       bIgnoreCase = true
     }
@@ -297,7 +298,13 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
       dict.updateCompleteness(tokensUntagged)
       tagger.trainWithDictionary(dict)
     }
-    else tagger.train(iter)
+    else if(!bTrainingDataAsDictionary) tagger.train(iter)
+    else {
+      val dict = new Dictionary(iter)
+      dict.removeDuplicateEntries
+      dict.updateCompleteness(tokensUntagged)
+      tagger.trainWithDictionary(dict)
+    }
     if(bProcessUntaggedData){
       tagger.processUntaggedData(tokensUntagged)
     }
