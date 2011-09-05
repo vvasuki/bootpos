@@ -126,7 +126,7 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
     numWordsTraining = numWordsTotal
     
     wordTagStatsFinal.updateWordTagCount(lstData.toList)
-    val bUniformModelForTags = false
+    val bUniformModelForTags = true
     if(bUniformModelForTags)
       logPrTGivenT = new MatrixBufferDense[Double](numTags, numTags, math.log(1/numTags.toDouble), true)
     else

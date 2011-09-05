@@ -193,11 +193,17 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   if(BootPos.bWiktionary) processFile(WIKTIONARY)
   if(BootPos.bUseTrainingData) processFile(TRAINING_DIR)
 
-
-
   def test = {
     println(language + ' ' + corpus);
-    processFile(TEST_DIR)
+    
+    tagResults = new TaggingResult()
+    val iter = getWordTagIteratorFromFile(mode)
+    val testData = new ArrayBuffer[Array[String]](10000)
+    iter.copyToBuffer(testData)
+    println("test tokens: " + testData.length)
+    val results = tagger.test(testData)
+    tagResults.processTaggingResults(results, testData, sentenceSepWord)
+
     tagResults.getAccuracy()
     // println("Most frequent tag overall: "+ tagger.bestTagsOverall)
     if(BootPos.bUniversalTags) println(tagMap.unmappedTags + " unmapped tags.")
@@ -273,43 +279,26 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def processFile(mode: String) = {
+    val untaggedDataFile = getFileName("raw")
+    val tokensUntagged = new ArrayBuffer[String]()
 
-    if(mode.equals(TEST_DIR)) {
-      tagResults = new TaggingResult()
+    if(bProcessUntaggedData){
+      tokensUntagged ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap()).getColumn(0)
+      if(tokensUntagged.head != sentenceSepWord) tokensUntagged prepend sentenceSepWord
+      if(tokensUntagged.last != sentenceSepWord) tokensUntagged += sentenceSepWord
     }
 
-    val iter = getWordTagIteratorFromFile(mode)
-    
-
-    if(!mode.equals(TEST_DIR)) {
-      val untaggedDataFile = getFileName("raw")
-      val tokensUntagged = new ArrayBuffer[String]()
-
-      if(bProcessUntaggedData){
-        tokensUntagged ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap()).getColumn(0)
-        if(tokensUntagged.head != sentenceSepWord) tokensUntagged prepend sentenceSepWord
-        if(tokensUntagged.last != sentenceSepWord) tokensUntagged += sentenceSepWord
-      }
-      
-      if(mode == WIKTIONARY) {
-        // get words to consider.
-        val testWords = getWordTagIteratorFromFile(TEST_DIR).map(_(0)).toSet
-        val dict = new Dictionary(iter, testWords ++ tokensUntagged)
-        dict.addEntry(sentenceSepWord, sentenceSepTag)
-        dict.updateCompleteness(tokensUntagged)
-        tagger.trainWithDictionary(dict)
-      }
-      else tagger.train(iter)
-      if(bProcessUntaggedData){
-        tagger.processUntaggedData(tokensUntagged)
-      }
+    if(mode == WIKTIONARY) {
+      // get words to consider.
+      val testWords = getWordTagIteratorFromFile(TEST_DIR).map(_(0)).toSet
+      val dict = new Dictionary(iter, testWords ++ tokensUntagged)
+      dict.addEntry(sentenceSepWord, sentenceSepTag)
+      dict.updateCompleteness(tokensUntagged)
+      tagger.trainWithDictionary(dict)
     }
-    else {
-      val testData = new ArrayBuffer[Array[String]](10000)
-      iter.copyToBuffer(testData)
-      println("test tokens: " + testData.length)
-      val results = tagger.test(testData)
-      tagResults.processTaggingResults(results, testData, sentenceSepWord)
+    else tagger.train(iter)
+    if(bProcessUntaggedData){
+      tagger.processUntaggedData(tokensUntagged)
     }
 
   }
