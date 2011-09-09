@@ -301,7 +301,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     else if(!bTrainingDataAsDictionary) tagger.train(iter)
     else {
       val dict = new Dictionary(iter)
-      dict.removeDuplicateEntries
+      // dict.removeDuplicateEntries
       dict.updateCompleteness(tokensUntagged)
       tagger.trainWithDictionary(dict)
     }

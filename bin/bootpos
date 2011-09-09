@@ -32,7 +32,7 @@ EOF
 
 if [ $CMD = 'build' ]; then
 
-    java -jar $BOOTPOS_DIR/project/build/sbt-launch-0.7.7.jar "$@"
+    java -jar $BOOTPOS_DIR/bin/sbt-launch.jar "$@"
 
 else 
 
