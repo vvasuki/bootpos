@@ -1,5 +1,6 @@
 package opennlp.bootpos.app
 import opennlp.bootpos.util.collection._
+import scala.collection.mutable.ArrayBuffer
 
 object BootPos {
 //  The file whence parameters such as laungage, corpus, taggerType are read.
@@ -8,8 +9,10 @@ object BootPos {
 //The following run-time settings are described in detail in the file RUNTIME_SETTINGS_FILE
   var bUniversalTags = false
   var bUseTrainingData = true; var bWiktionary = false;
-  var language = ""; var corpus = ""; var taggerType = ""
+  var testCorpus = ""
+  var taggerType = ""
   var conllCorpora : List[String] = null
+  var allCorpora : List[String] = null
   var DATA_DIR = ""
   val props = new java.util.Properties
   var numIterations = 1
@@ -23,18 +26,17 @@ object BootPos {
     bUniversalTags = props.getProperty("bUniversalTags").toBoolean
     bUseTrainingData = props.getProperty("bUseTrainingData").toBoolean
     bWiktionary = props.getProperty("bWiktionary").toBoolean
-    language = props.getProperty("language")
-    corpus = props.getProperty("corpus")
+    testCorpus = props.getProperty("testCorpus")
     taggerType = props.getProperty("taggerType")
     DATA_DIR = props.getProperty("DATA_DIR")
     numIterations = props.getProperty("numIterations").toInt
     conllCorpora = props.getProperty("conllCorpora").replace(" ", "").split(",").toList
+    allCorpora = props.getProperty("allCorpora").replace(" ", "").split(",").toList
     rawTokensLimit = props.getProperty("rawTokensLimit").toInt
 
     if(bWiktionary) bUniversalTags = true;
     else bUseTrainingData = true;
     println("Properties file: "+ RUNTIME_SETTINGS_FILE)
-    println(language + " " + corpus)
     println("Using universal tags? "+ bUniversalTags)
     println("Using wiktionary? "+ bWiktionary)
     println("Using training data? "+ bUseTrainingData)
@@ -48,8 +50,20 @@ object BootPos {
   def main(args: Array[String]): Unit = {
     if(args.length>0) RUNTIME_SETTINGS_FILE = args(0)
     readRuntimeSettings
-
-    var wtp = new CorpusProcessor(language, corpus, taggerType).test
+    def testOnCorpus(corpusStr : String) = {
+      val Array(language, corpus) = corpusStr.split("-")
+      println(language + " " + corpus)
+      var wtp = new CorpusProcessor(language, corpus, taggerType)
+      wtp.test
+    }
+    val results = new ArrayBuffer[String](10)
+    testCorpus match {
+    case "all" => {
+        results ++= allCorpora.map(testOnCorpus)
+      }
+    case x => results += testOnCorpus(x)
+    }
+    println(results.mkString("\n"))
   }
 }
 object BootPosTest {

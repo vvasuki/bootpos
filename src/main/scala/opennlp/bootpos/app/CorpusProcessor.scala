@@ -17,6 +17,11 @@ class TaggingResult {
   var correctTaggingsSeen = 0
   var correctTaggingsNovel = 0
 
+  var accuracy = 0.0
+  var accuracyKnown = 0.0
+  var accuracyNovel = 0.0
+  var novelTokensFrac = 0.0
+
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def update(bCorrect: Boolean, bNovelToken: Boolean, bSeenToken: Boolean) = {
@@ -34,23 +39,30 @@ class TaggingResult {
     }
   }
 
+  def toTsv = {
+    accuracy + "\t" + accuracyKnown + "\t" + accuracyNovel + "\t" + novelTokensFrac 
+  }
+
 //  Confidence in correctness: High.
 //  Reason: Well tested.
-  def getAccuracy() = {
+  def updateAccuracy = {
     var correctTaggings = correctTaggingsKnown + correctTaggingsNovel
     var numTestTokens = numTestTokensKnown + numTestTokensNovel
-    var accuracy = correctTaggings/ numTestTokens.toDouble
-    var accuracyKnown = correctTaggingsKnown/ numTestTokensKnown.toDouble
-    var accuracyNovel = correctTaggingsNovel/ numTestTokensNovel.toDouble
+    accuracy = correctTaggings/ numTestTokens.toDouble
+    accuracyKnown = correctTaggingsKnown/ numTestTokensKnown.toDouble
+    accuracyNovel = correctTaggingsNovel/ numTestTokensNovel.toDouble
+    novelTokensFrac = numTestTokensNovel/numTestTokens.toDouble
 
     printf("Accuracy: %.3f, (Known: %.3f, Novel: %.3f)\n", accuracy, accuracyKnown, accuracyNovel)
-    printf("Non training tokens: %d, %.3f\n", numTestTokensNovel, numTestTokensNovel/numTestTokens.toDouble)
+    printf("Non training tokens: %.3f\n", novelTokensFrac)
   }
   
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def processTaggingResults(results: ArrayBuffer[Array[Boolean]], testData: ArrayBuffer[Array[String]], sentenceSepWord: String)= {
     val bUntaggedTextUsed = results(0).length>2
+    // TODO: record tag Mistakes
+    
     for {i <- testData.indices.iterator
       if(testData(i)(0) != sentenceSepWord)
     }{
@@ -157,7 +169,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   val tagMap = new TagMap(DATA_DIR+"universal_pos_tags.1.02/", language, corpus, sentenceSepTagIn = sentenceSepTag)
   var bProcessUntaggedData = false
   var bIgnoreCase = true
-  val bTrainingDataAsDictionary = true
+  var bTrainingDataAsDictionary = false
 
   var encoding = "UTF-8"
   language match {
@@ -205,9 +217,11 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     val results = tagger.test(testData)
     tagResults.processTaggingResults(results, testData, sentenceSepWord)
 
-    tagResults.getAccuracy()
+    tagResults.updateAccuracy
     // println("Most frequent tag overall: "+ tagger.bestTagsOverall)
     if(BootPos.bUniversalTags) println(tagMap.unmappedTags + " unmapped tags.")
+    val corpusStr = language + "-" + corpus
+    corpusStr + "\t"+tagResults.toTsv
   }
 
 //  Confidence in correctness: High.
@@ -216,16 +230,16 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     if(fileType == WIKTIONARY)
       return DATA_DIR + WIKTIONARY
     var languageCorpusString = language;
-    if(!corpus.equals(""))
-      languageCorpusString += '/' + corpus
+    languageCorpusString += '/' + corpus
     var dir = DATA_DIR + languageCorpusString
 
     val subDir = fileType.replace("raw", "train")
     dir += '/'+ subDir + '/'
-//     println("dir: " + dir)
-//     println(new File(dir).list.toList)
+    println("dir: " + dir)
+    println(new File(dir).list.toList)
 
-    val files = new File(dir).list.toList.filter(_ contains fileType)
+    val files = new File(dir).list.toList.
+      filter(x => (x contains fileType) && !(x contains ".ref"))
     val file = dir+files.head
     file
   }
@@ -255,7 +269,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     if(mode.equals(WIKTIONARY))tagField = 2
     else if(! (BootPos.conllCorpora contains corpus)) {
       wordField = 0; tagField = 1;
-      if(List("", "hmm") contains corpus)
+      if(List("hmm") contains corpus)
         sep = '/'
     }
 
@@ -281,10 +295,10 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //  Reason: Well tested.
   def processFile(mode: String) = {
     val iter = getWordTagIteratorFromFile(mode)
-    val untaggedDataFile = getFileName("raw")
     val tokensUntagged = new ArrayBuffer[String]()
 
     if(bProcessUntaggedData){
+      val untaggedDataFile = getFileName("raw")
       tokensUntagged ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap()).getColumn(0)
       if(tokensUntagged.head != sentenceSepWord) tokensUntagged prepend sentenceSepWord
       if(tokensUntagged.last != sentenceSepWord) tokensUntagged += sentenceSepWord
@@ -301,7 +315,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     else if(!bTrainingDataAsDictionary) tagger.train(iter)
     else {
       val dict = new Dictionary(iter)
-      // dict.removeDuplicateEntries
+      dict.removeDuplicateEntries
       dict.updateCompleteness(tokensUntagged)
       tagger.trainWithDictionary(dict)
     }
