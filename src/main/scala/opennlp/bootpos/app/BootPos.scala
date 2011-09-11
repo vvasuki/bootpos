@@ -13,6 +13,7 @@ object BootPos {
   var taggerType = ""
   var conllCorpora : List[String] = null
   var allCorpora : List[String] = null
+  var bUseAsDictionary = false
   var DATA_DIR = ""
   val props = new java.util.Properties
   var numIterations = 1
@@ -25,6 +26,7 @@ object BootPos {
     file.close
     bUniversalTags = props.getProperty("bUniversalTags").toBoolean
     bUseTrainingData = props.getProperty("bUseTrainingData").toBoolean
+    bUseAsDictionary =props.getProperty("bUseAsDictionary").toBoolean
     bWiktionary = props.getProperty("bWiktionary").toBoolean
     testCorpus = props.getProperty("testCorpus")
     taggerType = props.getProperty("taggerType")
@@ -37,9 +39,12 @@ object BootPos {
     if(bWiktionary) bUniversalTags = true;
     else bUseTrainingData = true;
     println("Properties file: "+ RUNTIME_SETTINGS_FILE)
+    println("taggerType: "+ taggerType)
     println("Using universal tags? "+ bUniversalTags)
     println("Using wiktionary? "+ bWiktionary)
     println("Using training data? "+ bUseTrainingData)
+    if(bUseTrainingData)
+      println("Using training data as dictionary ? "+ bUseAsDictionary)
   }
   
   /**

@@ -196,13 +196,13 @@ class MatrixBufferDense[T] (rowsIn: Int, colsIn: Int, defaultValue: T = null.asI
 //  Reason: Proved correct.
   def increment(row: Int, col: Int)(implicit numeric: Numeric[T]) = {
     expandBuffer(row, col)
-    println(numeric.getClass)
+    // println(numeric.getClass)
     if(numeric.getClass.toString contains "Int"){
-      println("case Int")
+      // println("case Int")
       matrix(row)(col) = numeric.plus(apply(row, col), (1).asInstanceOf[T])
     }
     else{
-      println("case Double")
+      // println("case Double")
       matrix(row)(col) = numeric.plus(apply(row, col), (1.0).asInstanceOf[T])
     }
     
