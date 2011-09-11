@@ -1,7 +1,7 @@
 package opennlp.bootpos.util.io
 import scala.io.Source
 
-class TextTableParser(file: String, encodingIn: String = "UTF-8", separator: Char = '\t', filterFnIn: Array[String] => Boolean = (x =>x.length >=1), lineMapFn : String => String = null){
+class TextTableParser(file: String, encodingIn: String = "UTF-8", separator: Char = '\t', filterFnIn: Array[String] => Boolean = (x =>x.length >=1), lineMapFn : String => String = null, maxLines: Int = 0){
   
   val src = if(encodingIn == null) Source.fromFile(file)
     else {println("Encoding: " + encodingIn);
@@ -9,6 +9,7 @@ class TextTableParser(file: String, encodingIn: String = "UTF-8", separator: Cha
 
   def getLines: Iterator[String]={
     var lines = src.getLines()
+    if(maxLines>0) lines = lines.take(maxLines)
     if(lineMapFn != null) lines = lines.map(lineMapFn)
     lines
   }

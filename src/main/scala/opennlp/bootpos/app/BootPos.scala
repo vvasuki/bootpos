@@ -19,11 +19,16 @@ object BootPos {
   var numIterations = 1
   var rawTokensLimit = 0
 
+  // Initial read of properties.
+  // This is wverwritten if a fileName is passed during invocation.
+  readRuntimeSettings
+
 //  Read RUNTIME_SETTINGS_FILE and set parameters liek language, corpus etc..
   def readRuntimeSettings = {
     val file = new java.io.FileInputStream(RUNTIME_SETTINGS_FILE)
     props.load(file)
     file.close
+    
     bUniversalTags = props.getProperty("bUniversalTags").toBoolean
     bUseTrainingData = props.getProperty("bUseTrainingData").toBoolean
     bUseAsDictionary =props.getProperty("bUseAsDictionary").toBoolean
@@ -38,11 +43,16 @@ object BootPos {
 
     if(bWiktionary) bUniversalTags = true;
     else bUseTrainingData = true;
+  }
+
+  def printSettings = {
     println("Properties file: "+ RUNTIME_SETTINGS_FILE)
     println("taggerType: "+ taggerType)
     println("Using universal tags? "+ bUniversalTags)
     println("Using wiktionary? "+ bWiktionary)
     println("Using training data? "+ bUseTrainingData)
+    println("Raw tokens limit "+ rawTokensLimit)
+
     if(bUseTrainingData)
       println("Using training data as dictionary ? "+ bUseAsDictionary)
   }
@@ -55,6 +65,7 @@ object BootPos {
   def main(args: Array[String]): Unit = {
     if(args.length>0) RUNTIME_SETTINGS_FILE = args(0)
     readRuntimeSettings
+    printSettings
     def testOnCorpus(corpusStr : String) = {
       val Array(language, corpus) = corpusStr.split("-")
       println(language + " " + corpus)

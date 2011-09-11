@@ -3,7 +3,7 @@ package opennlp.bootpos.app
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
 import opennlp.bootpos.util.collection._
-import opennlp.bootpos.util.io.TextTableParser
+import opennlp.bootpos.util.io._
 import opennlp.bootpos.tag._
 import opennlp.bootpos.tag.hmm._
 import java.util.NoSuchElementException
@@ -79,7 +79,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 
     if(bProcessUntaggedData){
       val untaggedDataFile = getFileName("raw")
-      tokensUntagged ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap()).getColumn(0)
+      tokensUntagged ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap(), maxLines = BootPos.rawTokensLimit).getColumn(0)
       if(tokensUntagged.head != sentenceSepWord) tokensUntagged prepend sentenceSepWord
       if(tokensUntagged.last != sentenceSepWord) tokensUntagged += sentenceSepWord
     }
@@ -144,12 +144,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     val subDir = fileType.replace("raw", "train")
     dir += '/'+ subDir + '/'
     println("dir: " + dir)
-    println(new File(dir).list.toList)
-
-    val files = new File(dir).list.toList.
-      filter(x => (x contains fileType) && !(x contains ".ref"))
-    val file = dir+files.head
-    file
+    fileUtil.getFilePath(dir, (x => (x contains fileType) && !(x contains ".ref")))
   }
 
 /*  Purpose: While processing lines read from a file,

@@ -23,7 +23,8 @@ Bootpos 0.1 commands:
 
   build         build Bootpos with SBT
   config        run Bootpos on the specified config file
-  test        run some unit-tests.
+  dataprep      Do sentence detection or tokenization.
+  test          run some unit-tests.
   run           run the main method of a given class
 
 Include --help with any option for more information
@@ -41,6 +42,7 @@ else
     case $CMD in
   config) CLASS=opennlp.bootpos.app.BootPos;;
   test) CLASS=opennlp.bootpos.app.BootPosTest;;
+  dataprep) CLASS=opennlp.bootpos.util.io.rawTextProcessor;;
 	run) CLASS=$1; shift;;
 	help) help; exit 1;;
 	*) echo "Unrecognized command: $CMD"; help; exit 1;;
