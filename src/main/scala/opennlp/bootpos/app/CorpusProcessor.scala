@@ -70,24 +70,6 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   if(BootPos.bUseTrainingData) train(TRAINING_DIR)
 
 
-  def test = {
-    println(language + ' ' + corpus);
-    
-    tagResults = new TaggingResult()
-    val iter = getWordTagIteratorFromFile(TEST_DIR)
-    val testData = new ArrayBuffer[Array[String]](10000)
-    iter.copyToBuffer(testData)
-    println("test tokens: " + testData.length)
-    val results = tagger.test(testData)
-    tagResults.processTaggingResults(results, testData, sentenceSepWord)
-
-    tagResults.updateAccuracy
-    // println("Most frequent tag overall: "+ tagger.bestTagsOverall)
-    if(BootPos.bUniversalTags) println(tagMap.unmappedTags + " unmapped tags.")
-    val corpusStr = language + "-" + corpus
-    corpusStr + "\t"+tagResults.toTsv
-  }
-
 
 //  Confidence in correctness: High.
 //  Reason: Well tested.
@@ -123,9 +105,29 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 
   }
 
+//  Confidence in correctness: High.
+//  Reason: Well tested.
+  def test = {
+    println(language + ' ' + corpus);
+
+    tagResults = new TaggingResult()
+    val iter = getWordTagIteratorFromFile(TEST_DIR)
+    val testData = new ArrayBuffer[Array[String]](10000)
+    iter.copyToBuffer(testData)
+    println("test tokens: " + testData.length)
+    val results = tagger.test(testData)
+    tagResults.processTaggingResults(results, testData, sentenceSepWord)
+
+    tagResults.updateAccuracy
+    // println("Most frequent tag overall: "+ tagger.bestTagsOverall)
+    if(BootPos.bUniversalTags) println(tagMap.unmappedTags + " unmapped tags.")
+    val corpusStr = language + "-" + corpus
+    corpusStr + "\t"+tagResults.toTsv
+  }
 
 
-// ============== File processing below.
+
+// ============== File processing below. Core logic above.
 
 
 
