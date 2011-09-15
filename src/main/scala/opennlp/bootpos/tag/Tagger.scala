@@ -11,8 +11,11 @@ trait Tagger extends Serializable{
   val TAGNUM_IN = 25
   val WORDNUM_IN = 3000
   var bestTagsOverall = new LinkedList[Int]()
-  val wordIntMap = new BijectiveHashMap[String, Int]
-  val tagIntMap = new BijectiveHashMap[String, Int]
+  // We want to allow wordIntMap and tagIntMap to be supplied
+  // while building compound taggers.
+  var wordIntMap = new BijectiveHashMap[String, Int]
+  var tagIntMap = new BijectiveHashMap[String, Int]
+  var bIgnoreCase = true
 
 
 //  Confidence in correctness: High.
@@ -33,7 +36,10 @@ trait Tagger extends Serializable{
 
 //  Confidence in correctness: High.
 //  Reason: Well tested.
-  def getWordId(word: String): Int = {
+  def getWordId(wordIn: String): Int = {
+    var word = wordIn
+    if(bIgnoreCase)
+      word = word.map(_.toUpper)
     if(!wordIntMap.contains(word))
       wordIntMap.put(word, wordIntMap.size)
     wordIntMap(word)

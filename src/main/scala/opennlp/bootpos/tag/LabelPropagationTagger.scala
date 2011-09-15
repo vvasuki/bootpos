@@ -14,7 +14,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
   val wordTagMap = new MatrixBufferDense[Int](WORDNUM_IN, TAGNUM_IN)
   var numTrainingWords = 0
 
-//  Input: word-token pairs - from a dictionary or tagged text.
+//  Input: word-token pairs from tagged text.
 //  State alteration: Appropriately update the wordTagMap and wordAfterWordMap tables,
 //    numTags and numTrainingWords.
 //  Confidence in correctness: High.
@@ -28,6 +28,69 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     }
     wordAfterWordMap(sentenceSepWord, sentenceSepWord) = 0
     numTrainingWords = wordTagMap.numRows
+  }
+
+//  Confidence in correctness: High.
+//  Reason: proved correct.
+  def updateWordAfterWordMap(tokenIter: Iterator[Int]) = {
+    var prevToken = sentenceSepWord
+    for(token <- tokenIter) {
+      wordAfterWordMap.increment(token, prevToken)
+      prevToken = token
+    }
+    wordAfterWordMap(sentenceSepWord, sentenceSepWord) = 0
+  }
+
+//  Input: word-token pairs from tagged text.
+//  State alteration: Appropriately update the wordTagMap,
+//    numTrainingWords.
+//  Confidence in correctness: High.
+//  Reason: proved correct.
+  override def trainWithDictionary(dictionary: Dictionary) = {
+    var lstData = dictionary.lstData.
+      map(x => Array(getWordId(x(0)), getTagId(x(1))))
+    lstData.foreach(x => wordTagMap.increment(x(0), x(1)))
+    numTrainingWords = wordTagMap.numRows
+  }
+
+
+
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+//
+//  Claims:
+//    All necessary (w, p) edges are added.
+//      No spurious (w, p) edge is added.
+//    All necessary (w, t) edges are added.
+//      No spurious (w, t) edge is added.
+//    Every (w, p) edge has the right weight.
+//    Every (w, t) edge has the right weight.
+  def makeEdges: ListBuffer[Edge] = {
+    var edges = new ListBuffer[Edge]()
+    var numWords = wordAfterWordMap.numRows
+
+    for(word <- (0 to numWords -1)) {
+//      Add (w, p) edges
+      var numOcc = wordAfterWordMap(word).values.sum
+      wordAfterWordMap(word).foreach(x => {
+        edges += new Edge(nodeNamer.w(word), nodeNamer.p(x._1), x._2/numOcc.toDouble)
+      })
+
+//      Add (w, t) edges
+//        In the case of novel words, simply use the uniform distribution on all possible tags excluding the sentence separator tag.
+      if(word >= numTrainingWords)
+        (0 to numTags-1).filter(x => x != sentenceSepTag).foreach{
+          x => edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), 1/(numTags-1).toDouble)
+        }
+      else {
+//        In case of known words, this would be derived from wordTagMap.
+//      Assumption : Every word w \in Training has atleast one tag associated with it.
+        var numTaggings = wordTagMap(word).sum
+        (0 to numTags-1).filter(wordTagMap(word, _) > 0).foreach(x =>
+          edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), wordTagMap(word, x)/numTaggings.toDouble))
+      }
+    }
+    edges
   }
 
 
@@ -48,50 +111,13 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //    
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
-  def getGraph(expectedLabels: List[Label]) : Graph = {
+  def getGraph(expectedLabels: List[Label] = List()) : Graph = {
 
 //    Set tag-node labels.
     var labels = (0 to numTags-1) map(x => 
       LabelCreator(nodeNamer.t(x), getTagStr(x))
     )
 
-//  Confidence in correctness: High.
-//  Reason: Proved correct.
-//    
-//  Claims:
-//    All necessary (w, p) edges are added.
-//      No spurious (w, p) edge is added.
-//    All necessary (w, t) edges are added.
-//      No spurious (w, t) edge is added.
-//    Every (w, p) edge has the right weight.
-//    Every (w, t) edge has the right weight.
-    def makeEdges: ListBuffer[Edge] = {
-      var edges = new ListBuffer[Edge]()
-      var numWords = wordAfterWordMap.numRows
-
-      for(word <- (0 to numWords -1)) {
-  //      Add (w, p) edges
-        var numOcc = wordAfterWordMap(word).values.sum
-        wordAfterWordMap(word).foreach(x => {
-          edges += new Edge(nodeNamer.w(word), nodeNamer.p(x._1), x._2/numOcc.toDouble)
-        })
-
-  //      Add (w, t) edges
-  //        In the case of novel words, simply use the uniform distribution on all possible tags excluding the sentence separator tag.
-        if(word >= numTrainingWords)
-          (0 to numTags-1).filter(x => x != sentenceSepTag).foreach{
-            x => edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), 1/(numTags-1).toDouble)
-          }
-        else {
-  //        In case of known words, this would be derived from wordTagMap.
-  //      Assumption : Every word w \in Training has atleast one tag associated with it.
-          var numTaggings = wordTagMap(word).sum
-          (0 to numTags-1).filter(wordTagMap(word, _) > 0).foreach(x =>
-            edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), wordTagMap(word, x)/numTaggings.toDouble))
-        }
-      }
-      edges
-    }
 
     val edges = makeEdges
 /*    println("edges:")
@@ -102,17 +128,6 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     graph
   }
 
-
-//
-//  Input: testData: ArrayBuffer[Array[Int]]: where testData(i) contains an array
-//    where the first element is the word Id and the second element is the actual token.
-//  Output: An ArrayBuffer of tuples (tag, bNovel) corresponding to each token in testData.
-//
-//  Confidence in correctness: Low.
-//  Reason: Proved correct but test on ic database fails to produce expected results.
-  def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
-    val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
-
 //  Tasks:
 //    Update wordAfterWordMap with information from testData.
 //    Return the expected labels list.
@@ -120,56 +135,81 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //  Reason: Proved correct.
 //  Claims:
 //    wordAfterWordMap is updated using testData.
-//    For each word occuring in testData, 
+//    For each word occuring in testData,
 //      there is a Label in the expectedTags list.
 //      This Label is correctly chosen based on actual tags
 //      observed in the test data.
-    def prepareGraphData: List[Label] = {
-      var wordTagMapTest = new MatrixBufferDense[Int]((1.5*numTrainingWords).toInt, numTags)
-      var testWordSet = new HashSet[Int]()
+  def prepareGraphData(testData: ArrayBuffer[Array[Int]]): List[Label] = {
+    var wordTagMapTest = new MatrixBufferDense[Int]((1.5*numTrainingWords).toInt, numTags)
+    val tokenList = testData.map(x => x(0))
+    var testWordSet = tokenList.toSet
+    updateWordAfterWordMap(tokenList.iterator)
 
-      var prevToken = sentenceSepWord
-      for(Array(token, actualTag) <- testData) {
-        wordAfterWordMap.increment(token, prevToken)
+    testData.foreach(x=> wordTagMapTest.increment(x(0), x(1)))
 
-        wordTagMapTest.increment(token, actualTag)
-        testWordSet += token
+    var expectedLabels = testWordSet.map(x => {
+      val tagFreq = wordTagMapTest(x)
+      val tags = tagFreq.indices.filter(y => tagFreq(y)>0);
+      tags.map(y => {
+        val tagStr = getTagStr(y);
+        val tagPr = tagFreq(y)/tagFreq.sum.toDouble;
+        new Label(nodeNamer.w(x), tagStr, tagPr);
+      }).toList
+    }).toList.flatten
+    return expectedLabels
+  }
 
-        prevToken = token
-      }
-      wordAfterWordMap(sentenceSepWord, sentenceSepWord) = 0
-
-      var expectedLabels = testWordSet.map(x => {
-        val tagFreq = wordTagMapTest(x)
-        val tags = tagFreq.indices.filter(y => tagFreq(y)>0);
-        tags.map(y => {
-          val tagStr = getTagStr(y);
-          val tagPr = tagFreq(y)/tagFreq.sum.toDouble;
-          new Label(nodeNamer.w(x), tagStr, tagPr);
-        }).toList
-      }).toList.flatten
-      return expectedLabels
-    }
-
-    var expectedLabels = prepareGraphData
-    var graph = getGraph(expectedLabels)
-    JuntoRunner(graph, 1.0, .01, .01, 10, false)
-    
-//      Get tag lables from graph.
-    var resultPair = new ArrayBuffer[Array[Boolean]](testData.length)
+//      Get tag labels from graph.
+//  Confidence in correctness: Moderate.
+//  Reason: Proved correct but test on ic database fails to produce expected results.
+  def getPredictions(graph: Graph) = {
+  
     def getBestLabel(v: Vertex):String = {
       val tags = tagIntMap.keys.toList
       val scores = tags.map(v.GetEstimatedLabelScore(_))
       val maxScore = scores.max
       tags(scores.indices.find(scores(_) == maxScore).get)
     }
-    for(Array(token, actualTag) <- testData) {
+    val wtMap = new HashMap[String, String]
+    import scala.collection.JavaConverters._
+    val nodeNames = graph._vertices.keySet.asScala
+    nodeNames.filter(
+      _.startsWith(nodeNamer.P_WORD)).
+      foreach(x => {
+      val v = graph._vertices.get(x)
+      val tagStr = getBestLabel(v)
+      wtMap(nodeNamer.getId(x)) = tagStr
+    })
+    wtMap
+  }
+
+//
+//  Input: testData: ArrayBuffer[Array[Int]]: where testData(i) contains an array
+//    where the first element is the word Id and the second element is the actual token.
+//  Output: An ArrayBuffer of tuples (tag, bNovel) corresponding to each token in testData.
+//
+//  Confidence in correctness: Moderate.
+//  Reason: Proved correct but test on ic database fails to produce expected results.
+  def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
+    val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
+
+
+    var expectedLabels = prepareGraphData(testData)
+    var graph = getGraph(expectedLabels)
+    JuntoRunner(graph, 1.0, .01, .01, 10, false)
+    val wtMap = getPredictions(graph)
+
+    var resultPair = new ArrayBuffer[Array[Boolean]](testData.length)
+    testData.indices.foreach(i => {
+      val Array(token, actualTag) = testData(i)
+      val tokenStr = getWordStr(token)
+      
       val bNovelWord = (token >= numTrainingWords)
-      val tagStr = getBestLabel(graph._vertices.get(nodeNamer.w(token)))
 //       println("tokenStr: "+ getWordStr(token)+ " tag "+ tagStr + "act: "+getTagStr(actualTag))
-      val bCorrect = getTagId(tagStr) == actualTag
+      val tagStr = wtMap(tokenStr)
+      val bCorrect = tagIntMap(tagStr) == actualTag
       resultPair += Array(bCorrect, bNovelWord)
-    }
+    })
 
     //val resultPair = testData map { (t,tag) => ... }
 

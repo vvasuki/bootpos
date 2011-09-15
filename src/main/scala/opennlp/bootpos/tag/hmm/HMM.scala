@@ -83,6 +83,7 @@ Correctly updates the following:
 //  Reason: Well tested.
   def train(iter: Iterator[Array[String]]) = {
     val lstData = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
+    print(lstData.take(10).map(_.mkString(":")).mkString(", "))
     wordTagStatsFinal.updateCounts(lstData, this)
     numWordsTraining = numWordsTotal
 /*    println(wordTagStatsFinal)

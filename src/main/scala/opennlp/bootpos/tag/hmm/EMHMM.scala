@@ -8,7 +8,7 @@ import scala.collection.mutable.LinkedList
 import opennlp.bootpos.util.collection._
 import opennlp.bootpos.util._
 
-class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingStats: Boolean = true) extends HMM(sentenceSepTagStr, sentenceSepWordStr){
+class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingStats: Boolean = false) extends HMM(sentenceSepTagStr, sentenceSepWordStr){
   var numWordsSeen = 0
   override val wordTagStatsFinal = new WordTagStatsProb(TAGNUM_IN, WORDNUM_IN)
   
@@ -25,6 +25,10 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
 */
   override def processUntaggedData(textIn: ArrayBuffer[String]) = {
     val text = textIn.map(x => getWordId(x))
+    processTokenSeq(text)
+  }
+  
+  def processTokenSeq(text: ArrayBuffer[Int]) = {
     numWordsSeen = wordIntMap.size
     val numIterations = BootPos.numIterations
 //     Note: wordCount updated using untagged data.

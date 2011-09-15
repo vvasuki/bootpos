@@ -22,7 +22,6 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   var tagResults = new TaggingResult()
   val tagMap = new TagMap(DATA_DIR+"universal_pos_tags.1.02/", language, corpus, sentenceSepTagIn = sentenceSepTag)
   var bProcessUntaggedData = false
-  var bIgnoreCase = true
   var bTrainingDataAsDictionary = BootPos.bUseAsDictionary
 
   var encoding = "UTF-8"
@@ -45,23 +44,22 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   taggerType match {
     case "OpenNLP" => {
       tagger = new OpenNLP( language, sentenceSepTag, sentenceSepWord)
-      bIgnoreCase = false
     }
     case "HMM" => {
       tagger = new HMM(sentenceSepTag, sentenceSepWord)
-      bIgnoreCase = true
     }
     case "EMHMM" => {
       tagger = new EMHMM(sentenceSepTag, sentenceSepWord, bUseTrainingStats = !(BootPos.bWiktionary || bTrainingDataAsDictionary))
       bProcessUntaggedData = true
-      bIgnoreCase = true
+    }
+    case "LblPropEMHMM" => {
+      tagger = new LblPropEMHMM(sentenceSepTag, sentenceSepWord, bUseTrainingStats = !(BootPos.bWiktionary || bTrainingDataAsDictionary))
+      bProcessUntaggedData = true
     }
     case "LabelPropagation" => {
       tagger = new LabelPropagationTagger(sentenceSepTag, sentenceSepWord)
-      bIgnoreCase = true
     }
     case _ => {
-      bIgnoreCase = true
       tagger = new WordTagProbabilities(sentenceSepTag, sentenceSepWord)
     }
   }
@@ -153,8 +151,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   def lineMap(newSentenceLine: String = sentenceSepWord)(x:String)= {
     var y = x.trim;
     if(y.isEmpty()) y= newSentenceLine;
-    if(bIgnoreCase) y.map(_.toUpper)
-    else y
+    y
   }
 
 //    @return Iterator[Array[String]] whose elements are arrays of size 2, whose
@@ -190,6 +187,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     parser.getFieldIterator(wordField, tagField).map(x => {
         var tag = x(1); var word = x(0);
         if(BootPos.bUniversalTags) tag = tagMap.getMappedTag(tag, word)
+        else tag = tag.map(_.toUpper)
         Array(word, tag)
       })
   }
