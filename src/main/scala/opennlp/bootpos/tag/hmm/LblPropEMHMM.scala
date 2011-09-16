@@ -7,6 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.LinkedList
 import opennlp.bootpos.util.collection._
 import opennlp.bootpos.util._
+import upenn.junto.app._
 
 class LblPropEMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingStats: Boolean = true) extends 
 EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats = false) {
@@ -22,12 +23,13 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats = false) {
 
   override def processUntaggedData(textIn: ArrayBuffer[String]) = {
     val textInUp = textIn.map(_.map(_.toUpper))
-    val text = textInUp.map(x => getWordId(x))
-    lblPropTagger.updateWordAfterWordMap(text.iterator)
+    val tokenSeq = textInUp.map(x => getWordId(x))
+    lblPropTagger.updateWordAfterWordMap(tokenSeq.iterator)
     val graph = lblPropTagger.getGraph()
+    JuntoRunner(graph, 1.0, .01, .01, BootPos.numIterations, false)
     val wtMap = lblPropTagger.getPredictions(graph)
     train(textInUp.map(x => Array(x, wtMap(x))).iterator)
-    processTokenSeq(text)
+    processTokenSeq(tokenSeq)
   }
 
 }

@@ -5,6 +5,7 @@ import upenn.junto.config._
 import upenn.junto.graph._
 import scala.collection.mutable._
 import opennlp.bootpos.util.collection._
+import opennlp.bootpos.app._
 
 class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
   val sentenceSepTag = getTagId(sentenceSepTagStr)
@@ -21,7 +22,8 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //  Reason: proved correct.
   def train(iter: Iterator[Array[String]]) = {
     var prevToken = sentenceSepWord
-    for(Array(token, tag) <- iter.map(x => Array(getWordId(x(0)), getTagId(x(1))))){
+    val txtIn = iter.map(x => Array(getWordId(x(0)), getTagId(x(1))))
+    for(Array(token, tag) <- txtIn){
       wordTagMap.increment(token, tag)
       wordAfterWordMap.increment(token, prevToken)
       prevToken = token
@@ -51,6 +53,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
       map(x => Array(getWordId(x(0)), getTagId(x(1))))
     lstData.foreach(x => wordTagMap.increment(x(0), x(1)))
     numTrainingWords = wordTagMap.numRows
+    // wordTagMap.matrix.foreach(x => println(x.indexWhere(_>0)))
   }
 
 
@@ -196,7 +199,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 
     var expectedLabels = prepareGraphData(testData)
     var graph = getGraph(expectedLabels)
-    JuntoRunner(graph, 1.0, .01, .01, 10, false)
+    JuntoRunner(graph, 1.0, .01, .01, BootPos.numIterations, false)
     val wtMap = getPredictions(graph)
 
     var resultPair = new ArrayBuffer[Array[Boolean]](testData.length)
