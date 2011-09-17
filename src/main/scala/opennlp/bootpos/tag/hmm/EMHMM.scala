@@ -32,12 +32,13 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
     numWordsSeen = wordIntMap.size
     val numIterations = BootPos.numIterations
 //     Note: wordCount updated using untagged data.
+    println(this)
     wordTagStatsFinal.updateWordCount(text, this)
 
-/*    println("\n\nInitial counts:")
+    println("\n\nInitial counts:")
     println(wordTagStatsFinal)
     println("\n\nInitial params:")
-    println(this)*/
+    println(this)
     println("bUseTrainingStats: " + bUseTrainingStats)
     for(i <- 1 to numIterations){
       var wordTagStats: WordTagStatsProb = null
@@ -53,7 +54,7 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
         println(wordTagStats)
       }
       println("Iteration: " + i)
-      wordTagStats.updateCounts(text, this)
+      wordTagStats.updateCountsEM(text, this)
 /*      println("\n\nParams:")
       println(this)*/
     }
@@ -77,11 +78,19 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
     }
     {
       // transition probability given prior tokens
-      // println("i "+i + " token "+token + " prevTag "+ prevTag)
       val transitionPr = forwardPr(i-1, prevTag) + getArcPr(tag, prevTag, token)
       forwardPr(i, tag) = mathUtil.logAdd(forwardPr(i, tag), transitionPr)
+      if(i> 2725 && i<2835)
+//       if(false)
+      {
+        println("i "+i + " token "+token + " prevTag "+ prevTag + " trPr "+ transitionPr)
+        println(logPrWGivenT(token, tag))
+        println(forwardPr(i-1, prevTag))
+        println(getArcPr(tag, prevTag, token))
+        println(forwardPr(i, tag))
+      }
     }
-//     println(forwardPr.map(math.exp(_)))
+//     println(forwardPr.matrix.zipWithIndex)
     forwardPr
   }
 

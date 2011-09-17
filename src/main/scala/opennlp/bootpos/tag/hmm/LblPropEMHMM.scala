@@ -17,19 +17,18 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats = false) {
 //  Reason: Seems to be fine.
   override def trainWithDictionary(dictionary: Dictionary) = {
     lblPropTagger.trainWithDictionary(dictionary)
-    this.tagIntMap = lblPropTagger.tagIntMap
-    this.wordIntMap = lblPropTagger.wordIntMap
   }
 
   override def processUntaggedData(textIn: ArrayBuffer[String]) = {
     val textInUp = textIn.map(_.map(_.toUpper))
-    val tokenSeq = textInUp.map(x => getWordId(x))
-    lblPropTagger.updateWordAfterWordMap(tokenSeq.iterator)
+    val tokenSeq1 = textInUp.map(x => lblPropTagger.getWordId(x))
+    lblPropTagger.updateWordAfterWordMap(tokenSeq1.iterator)
     val graph = lblPropTagger.getGraph()
     JuntoRunner(graph, 1.0, .01, .01, BootPos.numIterations, false)
     val wtMap = lblPropTagger.getPredictions(graph)
     train(textInUp.map(x => Array(x, wtMap(x))).iterator)
-    processTokenSeq(tokenSeq)
+
+    super.processUntaggedData(textInUp)
   }
 
 }

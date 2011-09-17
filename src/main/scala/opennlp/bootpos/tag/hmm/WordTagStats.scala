@@ -9,6 +9,7 @@ import opennlp.bootpos.util.collection._
 import opennlp.bootpos.util._
 
 class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
+// entry (i, j) will count number of occurances of tag i before tag j
 // The following are Double arrays because in case of EM-HMM, counts could be a non-integer.
 //   Purpose: To estimate Pr(tag(i)|tag(i-1))
   var tagBeforeTagCount = new MatrixBufferDense[Double](TAGNUM_IN, TAGNUM_IN)
@@ -46,6 +47,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     tagBeforeTagCount = tagBeforeTagCount.map(_ * p)
     tagCount = tagCount.map(_ * p)
     wordCount = wordCount.map(_ * p)
+    // println(this)
   }
 
 /*
@@ -113,13 +115,14 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
       prevTag = tag
     }
 
-    val x = tagBeforeTagCount(sentenceSepTag, sentenceSepTag)
-    if(x>0){
-      tagBeforeTagCount(sentenceSepTag, sentenceSepTag) = 0
-      tagCount(sentenceSepTag) = tagCount(sentenceSepTag) - x
-      wordTagCount(sentenceSepWord, sentenceSepTag) = wordTagCount(sentenceSepWord, sentenceSepTag) - x
-      wordCount(sentenceSepWord) = wordCount(sentenceSepWord) - x
-    }
+// Doing the below adjustment may lead to errors, and it is mostly unimportant anyway.
+//     val x = tagBeforeTagCount(sentenceSepTag, sentenceSepTag)
+//     if(x>0){
+//       tagBeforeTagCount(sentenceSepTag, sentenceSepTag) = 0
+//       tagCount(sentenceSepTag) = tagCount(sentenceSepTag) - x
+//       wordTagCount(sentenceSepWord, sentenceSepTag) = wordTagCount(sentenceSepWord, sentenceSepTag) - x
+//       wordCount(sentenceSepWord) = wordCount(sentenceSepWord) - x
+//     }
 
     setLogPrTGivenT(hmm)
     setLogPrWGivenT(hmm)
@@ -131,7 +134,8 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     val numTokens = tagCount.sum
     for(tag1 <- (0 to numTags-1); tag2 <- (0 to numTags-1)) {
       var s = tagBeforeTagCount(tag2).count(x => x==1) + 1e-100
-      var x = (tagBeforeTagCount(tag2, tag1) + s*tagCount(tag1)/numTokens.toDouble)/(tagBeforeTagCount(tag2).sum + s).toDouble
+      val backOffProb = tagCount(tag1)/numTokens.toDouble
+      var x = (tagBeforeTagCount(tag2, tag1) + s*backOffProb)/(tagBeforeTagCount(tag2).sum + s).toDouble
       hmm.logPrTGivenT(tag1, tag2) = math.log(x)
 //       println(tag1 + "|" + tag2+ " = " + x)
     }
@@ -187,6 +191,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     hmm.logPrNovelWord(sentenceSepTag) = math.log(0)
 
   }
+
 /*
   Choose Pr(w \notin W) = dictionary.completeness.
   Set Pr(w \notin W_t) = Pr(w \notin W)
@@ -256,7 +261,7 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
   Reason: Proved correct. Also verified with ic test data.
     1. See comments below.
 */
-  def updateCounts(text: ArrayBuffer[Int], hmm: EMHMM) = {
+  def updateCountsEM(text: ArrayBuffer[Int], hmm: EMHMM) = {
     val numTokens = text.length
     val sentenceSepTag = hmm.sentenceSepTag
 
@@ -265,7 +270,8 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
     val numTokensUntagged = forwardPr.numRows
     val wordTagStatsFinal = hmm.wordTagStatsFinal
 
-    val prTokens = forwardPr(numTokensUntagged-1, sentenceSepTag)
+    val logPrTokens = forwardPr(numTokensUntagged-1, sentenceSepTag)
+    println("logPrTokens " + logPrTokens)
 
     prepareTableSizes(hmm.numWordsTotal, wordTagStatsFinal.numTags)
 /*
@@ -278,7 +284,7 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
       token = text(i)
       tag <- wordTagStatsFinal.possibleTags(token, hmm)
     }{
-      val prTag = forwardPr(i, tag) + backwardPr(i, tag) - prTokens
+      val prTag = forwardPr(i, tag) + backwardPr(i, tag) - logPrTokens
       wordTagCount(token, tag) = wordTagCount(token, tag) + math.exp(prTag)
       tagCount(tag) = tagCount(tag) + math.exp(prTag)
     }
@@ -293,7 +299,7 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
       tag <- wordTagStatsFinal.possibleTags(token, hmm)
       prevTag <- wordTagStatsFinal.possibleTags(text(i-1), hmm)
     }{
-      val prTagPair = forwardPr(i-1, prevTag) + backwardPr(i, tag) - prTokens + hmm.getArcPr(tag, prevTag, token)
+      val prTagPair = forwardPr(i-1, prevTag) + backwardPr(i, tag) - logPrTokens + hmm.getArcPr(tag, prevTag, token)
       tagBeforeTagCount(prevTag, tag) = tagBeforeTagCount(prevTag, tag) + math.exp(prTagPair)
     }
 

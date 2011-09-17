@@ -30,6 +30,15 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     }
     wordAfterWordMap(sentenceSepWord, sentenceSepWord) = 0
     numTrainingWords = wordTagMap.numRows
+    updateBestTagsOverall
+  }
+
+//  Confidence in correctness: High.
+//  Reason: proved correct.
+  def updateBestTagsOverall = {
+    val tagCount = wordTagMap.colSums
+    bestTagsOverall = bestTagsOverall.+:(tagCount.indexOf(tagCount.max))
+    // println(bestTagsOverall)
   }
 
 //  Confidence in correctness: High.
@@ -53,6 +62,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
       map(x => Array(getWordId(x(0)), getTagId(x(1))))
     lstData.foreach(x => wordTagMap.increment(x(0), x(1)))
     numTrainingWords = wordTagMap.numRows
+    updateBestTagsOverall
     // wordTagMap.matrix.foreach(x => println(x.indexWhere(_>0)))
   }
 
@@ -166,12 +176,20 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //  Confidence in correctness: Moderate.
 //  Reason: Proved correct but test on ic database fails to produce expected results.
   def getPredictions(graph: Graph) = {
-  
+    val tags = tagIntMap.keys.toList
+    val mostFrequentTag = getTagStr(bestTagsOverall.head)
+
     def getBestLabel(v: Vertex):String = {
-      val tags = tagIntMap.keys.toList
       val scores = tags.map(v.GetEstimatedLabelScore(_))
       val maxScore = scores.max
-      tags(scores.indices.find(scores(_) == maxScore).get)
+      val minScore = scores.min
+      // println(minScore + " " + maxScore)
+      if(maxScore > minScore)
+        tags(scores.indices.find(scores(_) == maxScore).get)
+      else{
+        println("getBestLabel: maxScore == minScore!")
+        mostFrequentTag
+      }
     }
     val wtMap = new HashMap[String, String]
     import scala.collection.JavaConverters._

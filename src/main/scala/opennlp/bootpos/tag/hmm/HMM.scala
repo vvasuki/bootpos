@@ -54,15 +54,24 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
     val randTag = (math.random * logPrTGivenT.numRows).toInt
     var str = "hmm:"
     str += "\nt="+randTag + " w="+randWord
-/*    str +=("\nT|T " + logPrTGivenT.map(math.exp))
-    str +=("\nW=w|T " + logPrWGivenT(randWord).map(math.exp))*/
-   str += "\n sum T|T=t " + (logPrTGivenT.colFold(math.log(0))(randTag, mathUtil.logAdd))
+    str +=("\nT|T " + logPrTGivenT.map(math.exp))
+//    str +=("\nW=w|T " + logPrWGivenT(randWord).map(math.exp))
+
+    val prTGivenTsums = (0 to numTags-1).map(
+      logPrTGivenT.colFold(math.log(0))(_, mathUtil.logAdd))
+    str += "\nBig sum T|T " +prTGivenTsums.indices.filter(x => math.abs(prTGivenTsums(x))> 1E-4)
+    str += "\n " + prTGivenTsums
+//     str += "\n " + logPrTGivenT.getCol(0).map(math.exp)
+//     str += "\n " + logPrTGivenT.getCol(9).map(math.exp)
+
 //     str += "\n sum W|T=t " + checkLogPrWGivenT(randTag)
 //     str +=("\nNW|T " + logPrNovelWord)
-    str +=("\nsum_W Pr(W|T)" + (0 to numTags-1).
+
+    str +=("\nBig sum_W Pr(W|T) " + (0 to numTags-1).
       map(checkLogPrWGivenT(_)).filter(math.abs(_)> 1E-4))
-    str +=("\n T=### "+ logPrWGivenT.getCol(sentenceSepTag).filter(_ != Double.NegativeInfinity))
-    str +=("\n T=### "+ logPrNovelWord(sentenceSepTag))
+    str +=("\n W|T=### "+ logPrWGivenT.getCol(sentenceSepTag).filter(_ != Double.NegativeInfinity))
+    str +=("\n NW|T=### "+ logPrNovelWord(sentenceSepTag))
+    str += "\n Pr(NW|T) " + logPrNovelWord
     str += "\n===\n"
     str
   }
@@ -83,7 +92,8 @@ Correctly updates the following:
 //  Reason: Well tested.
   def train(iter: Iterator[Array[String]]) = {
     val lstData = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
-    print(lstData.take(10).map(_.mkString(":")).mkString(", "))
+//     print(lstData.take(10).map(_.mkString(":")).mkString(", "))
+
     wordTagStatsFinal.updateCounts(lstData, this)
     numWordsTraining = numWordsTotal
 /*    println(wordTagStatsFinal)
