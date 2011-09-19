@@ -127,7 +127,8 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
   def getGraph(expectedLabels: List[Label] = List()) : Graph = {
 
 //    Set tag-node labels.
-    var labels = (0 to numTags-1) map(x => 
+//    Exclude sentenceSepTag: we don't want it propagating.
+    var labels = (0 to numTags-1) filterNot(_ == sentenceSepTag) map(x =>
       LabelCreator(nodeNamer.t(x), getTagStr(x))
     )
 
@@ -172,35 +173,38 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     return expectedLabels
   }
 
-//      Get tag labels from graph.
+//  Get tag labels from graph.
 //  Confidence in correctness: Moderate.
 //  Reason: Proved correct but test on ic database fails to produce expected results.
   def getPredictions(graph: Graph) = {
-    val tags = tagIntMap.keys.toList
+//     Input: v: Vertex which is a word node, but is not sentenceSepWordStr.
+    val labels = ArrayBuffer() ++ tagIntMap.keys.filterNot(_ == sentenceSepTagStr)
     val mostFrequentTag = getTagStr(bestTagsOverall.head)
-
     def getBestLabel(v: Vertex):String = {
-      val scores = tags.map(v.GetEstimatedLabelScore(_))
+      val scores = labels.map(v.GetEstimatedLabelScore(_))
       val maxScore = scores.max
       val minScore = scores.min
+
       // println(minScore + " " + maxScore)
       if(maxScore > minScore)
-        tags(scores.indices.find(scores(_) == maxScore).get)
+        labels(scores.indices.find(scores(_) == maxScore).get)
       else{
         println("getBestLabel: maxScore == minScore!")
         mostFrequentTag
       }
     }
+    
     val wtMap = new HashMap[String, String]
     import scala.collection.JavaConverters._
     val nodeNames = graph._vertices.keySet.asScala
-    nodeNames.filter(
-      _.startsWith(nodeNamer.P_WORD)).
+    nodeNames.filter(_.startsWith(nodeNamer.P_WORD)).
+      filterNot(_ == nodeNamer.w(sentenceSepWord)).
       foreach(x => {
       val v = graph._vertices.get(x)
       val tagStr = getBestLabel(v)
-      wtMap(nodeNamer.getId(x)) = tagStr
+      wtMap(nodeNamer.deprefixify(x)) = tagStr
     })
+    wtMap(sentenceSepWordStr) = sentenceSepTagStr
     wtMap
   }
 
@@ -253,7 +257,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 
   //  Confidence in correctness: High.
   //  Reason: proved correct.
-    def getId(nodeName: String): String = nodeName.substring(P_TAG.length)
+    def deprefixify(nodeName: String): String = nodeName.substring(P_TAG.length)
   }
 }
 

@@ -26,6 +26,9 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats = false) {
     val graph = lblPropTagger.getGraph()
     JuntoRunner(graph, 1.0, .01, .01, BootPos.numIterations, false)
     val wtMap = lblPropTagger.getPredictions(graph)
+/*    Ensure that the following, which leads to errors, does not happen above:
+    wtMap(x) == sentenceSepTagStr for x != sentenceSepWordStr.*/
+    
     train(textInUp.map(x => Array(x, wtMap(x))).iterator)
 
     super.processUntaggedData(textInUp)

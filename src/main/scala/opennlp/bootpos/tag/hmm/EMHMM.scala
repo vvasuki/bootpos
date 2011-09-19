@@ -80,14 +80,17 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
       // transition probability given prior tokens
       val transitionPr = forwardPr(i-1, prevTag) + getArcPr(tag, prevTag, token)
       forwardPr(i, tag) = mathUtil.logAdd(forwardPr(i, tag), transitionPr)
-      if(i> 2725 && i<2835)
+//       if(i> 2725 && i<2835)
+      if(forwardPr(i, tag) == math.log(0))
 //       if(false)
       {
-        println("i "+i + " token "+token + " prevTag "+ prevTag + " trPr "+ transitionPr)
-        println(logPrWGivenT(token, tag))
-        println(forwardPr(i-1, prevTag))
-        println(getArcPr(tag, prevTag, token))
-        println(forwardPr(i, tag))
+        println("i "+i + " token "+token + " prevTag "+ prevTag + " tag " + tag)
+        println("wordTagCount(token, tag) " + wordTagStatsFinal.wordTagCount(token, tag) +
+        " logPrWGivenT(token, tag) " + logPrWGivenT(token, tag)+
+        " trPr "+ transitionPr)
+        println("forwardPr(i-1, prevTag) "+ forwardPr(i-1, prevTag))
+        println("arcPr "+ getArcPr(tag, prevTag, token))
+        println("forwardPr(i, tag) " + forwardPr(i, tag))
       }
     }
 //     println(forwardPr.matrix.zipWithIndex)
