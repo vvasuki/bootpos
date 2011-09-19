@@ -60,7 +60,7 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
     val prTGivenTsums = (0 to numTags-1).map(
       logPrTGivenT.colFold(math.log(0))(_, mathUtil.logAdd))
     str += "\nBig sum T|T " +prTGivenTsums.indices.filter(x => math.abs(prTGivenTsums(x))> 1E-4)
-    str += "\n " + prTGivenTsums
+//     str += "\n " + prTGivenTsums
 //     str += "\n " + logPrTGivenT.getCol(0).map(math.exp)
 //     str += "\n " + logPrTGivenT.getCol(9).map(math.exp)
 

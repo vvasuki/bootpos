@@ -72,10 +72,12 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def train(mode: String) = {
+    println("Training with mode "+ mode)
     val iter = getWordTagIteratorFromFile(mode)
     val tokensUntagged = new ArrayBuffer[String]()
 
     if(bProcessUntaggedData){
+      println("Processing untagged data.")
       val untaggedDataFile = getFileName("raw")
       tokensUntagged ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap(), maxLines = BootPos.rawTokensLimit).getColumn(0)
       if(tokensUntagged.head != sentenceSepWord) tokensUntagged prepend sentenceSepWord
@@ -84,6 +86,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 
     if(mode == WIKTIONARY) {
       // get words to consider.
+      println("Loading test words too while picking dictionary entries.")
       val testWords = getWordTagIteratorFromFile(TEST_DIR).map(_(0)).toSet
       val dict = new Dictionary(iter, testWords ++ tokensUntagged)
       dict.addEntry(sentenceSepWord, sentenceSepTag)
@@ -106,7 +109,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def test = {
-    println(language + ' ' + corpus);
+    println("Testing " + language + ' ' + corpus);
 
     tagResults = new TaggingResult()
     val iter = getWordTagIteratorFromFile(TEST_DIR)
@@ -141,8 +144,9 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 
     val subDir = fileType.replace("raw", "train")
     dir += '/'+ subDir + '/'
-    println("dir: " + dir)
-    fileUtil.getFilePath(dir, (x => (x contains fileType) && !(x contains ".ref")))
+    val file = fileUtil.getFilePath(dir, (x => (x contains fileType) && !(x contains ".ref")))
+    println("file: " + file)
+    file
   }
 
 /*  Purpose: While processing lines read from a file,
@@ -160,6 +164,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //    Reason: Used many times without problems.
   def getWordTagIteratorFromFile(mode: String): Iterator[Array[String]] = {
 //      Determine wordField, tagField, sep
+    println("mode "+ mode)
     val file = getFileName(mode)
 
     var wordField = 1
