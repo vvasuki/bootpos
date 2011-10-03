@@ -6,6 +6,7 @@ import opennlp.bootpos.util.collection._
 import opennlp.bootpos.util.io._
 import opennlp.bootpos.tag._
 import opennlp.bootpos.tag.hmm._
+import opennlp.bootpos.tag.labelPropagation._
 import java.util.NoSuchElementException
 import java.io.File
 

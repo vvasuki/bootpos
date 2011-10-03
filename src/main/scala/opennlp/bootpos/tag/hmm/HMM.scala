@@ -20,7 +20,6 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
 */
   var logPrWGivenT = new MatrixBufferDense[Double](WORDNUM_IN, TAGNUM_IN, defaultValue = math.log(0))
   var logPrNovelWord = new ExpandingArray[Double](TAGNUM_IN, defaultValue = math.log(0))
-  var numWordsTraining = 0
 
   val wordTagStatsFinal = new WordTagStats(TAGNUM_IN, WORDNUM_IN)
   val sentenceSepTag = getTagId(sentenceSepTagStr)
@@ -156,8 +155,6 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
     val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
     val numTokens = testData.length
     val numTags = wordTagStatsFinal.numTags;
-    var resultPair = new ArrayBuffer[Array[Boolean]](numTokens)
-    resultPair = resultPair.padTo(numTokens, null)
 
     var bestPrevTag = new MatrixBufferDense[Int](numTokens + 1, numTags)
     var logPrSequence = new MatrixBufferDense[Double](numTokens + 1, numTags, defaultValue=math.log(0))
@@ -183,19 +180,16 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
 
     val bestTags = new Array[Int](numTokens)
     bestTags(numTokens-1) = logPrSequence(numTokens).indexOf(logPrSequence(numTokens).max)
-    resultPair(numTokens-1) = Array(testData(numTokens-1)(1) == bestTags(numTokens-1), testData(numTokens-1)(0) >= numWordsTraining)
     var perplexity = math.exp(-logPrSequence(numTokens, bestTags(numTokens-1))/numTokens)
     println("Perplexity: " + perplexity)
 
     for(tokenNum <- numTokens-2 to 0 by -1) {
-      var token = testData(tokenNum)(0)
       bestTags(tokenNum) = bestPrevTag(tokenNum+2, bestTags(tokenNum+1))
-      val bNovel = token >= numWordsTraining
-      resultPair(tokenNum) = Array(bestTags(tokenNum) == testData(tokenNum)(1), bNovel)
-      
-//      println(tokenNum + " : " + token + " : "+ resultPair(tokenNum))
     }
-    resultPair
+    
+//      println(tokenNum + " : " + token + " : "+ resultPair(tokenNum))
+
+    getResults(testData, bestTags)
   }
 
 }

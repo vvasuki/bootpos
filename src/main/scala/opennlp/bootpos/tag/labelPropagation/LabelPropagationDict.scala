@@ -1,5 +1,6 @@
-package opennlp.bootpos.tag
+package opennlp.bootpos.tag.labelPropagation
 
+import opennlp.bootpos.tag._
 import upenn.junto.app._
 import upenn.junto.config._
 import upenn.junto.graph._
@@ -7,39 +8,12 @@ import scala.collection.mutable._
 import opennlp.bootpos.util.collection._
 import opennlp.bootpos.app._
 
-class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
-  val sentenceSepTag = getTagId(sentenceSepTagStr)
+
+class LabelPropagationDict(sentenceSepTagStr :String, sentenceSepWordStr: String) extends LabelPropagation{
+  override val sentenceSepTag = getTagId(sentenceSepTagStr)
   val sentenceSepWord = getWordId(sentenceSepWordStr)
 
   val wordAfterWordMap = new MatrixBufferRowSparse[Int](WORDNUM_IN)
-  val wordTagMap = new MatrixBufferDense[Int](WORDNUM_IN, TAGNUM_IN)
-  var numTrainingWords = 0
-
-//  Input: word-token pairs from tagged text.
-//  State alteration: Appropriately update the wordTagMap and wordAfterWordMap tables,
-//    numTags and numTrainingWords.
-//  Confidence in correctness: High.
-//  Reason: proved correct.
-  def train(iter: Iterator[Array[String]]) = {
-    var prevToken = sentenceSepWord
-    val txtIn = iter.map(x => Array(getWordId(x(0)), getTagId(x(1))))
-    for(Array(token, tag) <- txtIn){
-      wordTagMap.increment(token, tag)
-      wordAfterWordMap.increment(token, prevToken)
-      prevToken = token
-    }
-    wordAfterWordMap(sentenceSepWord, sentenceSepWord) = 0
-    numTrainingWords = wordTagMap.numRows
-    updateBestTagsOverall
-  }
-
-//  Confidence in correctness: High.
-//  Reason: proved correct.
-  def updateBestTagsOverall = {
-    val tagCount = wordTagMap.colSums
-    bestTagsOverall = bestTagsOverall.+:(tagCount.indexOf(tagCount.max))
-    // println(bestTagsOverall)
-  }
 
 //  Confidence in correctness: High.
 //  Reason: proved correct.
@@ -53,18 +27,17 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
   }
 
 //  Input: word-token pairs from tagged text.
-//  State alteration: Appropriately update the wordTagMap,
-//    numTrainingWords.
+//  State alteration: Appropriately update the wordTagMap and wordAfterWordMap tables,
+//    numTags and numTrainingWords.
 //  Confidence in correctness: High.
 //  Reason: proved correct.
-  override def trainWithDictionary(dictionary: Dictionary) = {
-    var lstData = dictionary.lstData.
-      map(x => Array(getWordId(x(0)), getTagId(x(1))))
-    lstData.foreach(x => wordTagMap.increment(x(0), x(1)))
-    numTrainingWords = wordTagMap.numRows
+  def train(iter: Iterator[Array[String]]) = {
+    val txtIn = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
+    updateWordTagMap(txtIn.iterator)
+    updateWordAfterWordMap(txtIn.map(_(0)).iterator)
     updateBestTagsOverall
-    // wordTagMap.matrix.foreach(x => println(x.indexWhere(_>0)))
   }
+
 
 
 
@@ -79,8 +52,8 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //    Every (w, p) edge has the right weight.
 //    Every (w, t) edge has the right weight.
   def makeEdges: ListBuffer[Edge] = {
-    var edges = new ListBuffer[Edge]()
-    var numWords = wordAfterWordMap.numRows
+    val edges = new ListBuffer[Edge]()
+    val numWords = wordAfterWordMap.numRows
 
     for(word <- (0 to numWords -1)) {
 //      Add (w, p) edges
@@ -89,21 +62,8 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
         edges += new Edge(nodeNamer.w(word), nodeNamer.p(x._1), x._2/numOcc.toDouble)
       })
 
-//      Add (w, t) edges
-//        In the case of novel words, simply use the uniform distribution on all possible tags excluding the sentence separator tag.
-      if(word >= numTrainingWords)
-        (0 to numTags-1).filter(x => x != sentenceSepTag).foreach{
-          x => edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), 1/(numTags-1).toDouble)
-        }
-      else {
-//        In case of known words, this would be derived from wordTagMap.
-//      Assumption : Every word w \in Training has atleast one tag associated with it.
-        var numTaggings = wordTagMap(word).sum
-        (0 to numTags-1).filter(wordTagMap(word, _) > 0).foreach(x =>
-          edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), wordTagMap(word, x)/numTaggings.toDouble))
-      }
     }
-    edges
+    edges ++= makeWordTagEdges
   }
 
 
@@ -121,18 +81,11 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //
 //    ExpectedLabels described earlier.
 //
-//    
+//
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
   def getGraph(expectedLabels: List[Label] = List()) : Graph = {
-
-//    Set tag-node labels.
-//    Exclude sentenceSepTag: we don't want it propagating.
-    var labels = (0 to numTags-1) filterNot(_ == sentenceSepTag) map(x =>
-      LabelCreator(nodeNamer.t(x), getTagStr(x))
-    )
-
-
+    val labels = getLabels
     val edges = makeEdges
 /*    println("edges:")
     edges.foreach(println)
@@ -177,27 +130,11 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //  Confidence in correctness: Moderate.
 //  Reason: Proved correct but test on ic database fails to produce expected results.
   def getPredictions(graph: Graph) = {
-//     Input: v: Vertex which is a word node, but is not sentenceSepWordStr.
-    val labels = ArrayBuffer() ++ tagIntMap.keys.filterNot(_ == sentenceSepTagStr)
-    val mostFrequentTag = getTagStr(bestTagsOverall.head)
-    def getBestLabel(v: Vertex):String = {
-      val scores = labels.map(v.GetEstimatedLabelScore(_))
-      val maxScore = scores.max
-      val minScore = scores.min
 
-      // println(minScore + " " + maxScore)
-      if(maxScore > minScore)
-        labels(scores.indices.find(scores(_) == maxScore).get)
-      else{
-        println("getBestLabel: maxScore == minScore!")
-        mostFrequentTag
-      }
-    }
-    
     val wtMap = new HashMap[String, String]
     import scala.collection.JavaConverters._
     val nodeNames = graph._vertices.keySet.asScala
-    nodeNames.filter(_.startsWith(nodeNamer.P_WORD)).
+    nodeNames.filter(_.startsWith(nodeNamer.P_WORD_TYPE)).
       filterNot(_ == nodeNamer.w(sentenceSepWord)).
       foreach(x => {
       val v = graph._vertices.get(x)
@@ -228,7 +165,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     testData.indices.foreach(i => {
       val Array(token, actualTag) = testData(i)
       val tokenStr = getWordStr(token)
-      
+
       val bNovelWord = (token >= numTrainingWords)
 //       println("tokenStr: "+ getWordStr(token)+ " tag "+ tagStr + "act: "+getTagStr(actualTag))
       val tagStr = wtMap(tokenStr)
@@ -241,23 +178,5 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     resultPair
   }
 
-  object nodeNamer {
-  //  Prefixes distinguishing string names for various types of nodes.
-  //  Assumption: They are all of equal length.
-    val P_WORD = "W_"
-    val P_PREVWORD = "P_"
-    val P_TAG = "T_"
-
-  //  For all three "convenience" functions:
-  //  Confidence in correctness: High.
-  //  Reason: proved correct.
-    def w(id: Int) = P_WORD + getWordStr(id)
-    def p(id: Int) = P_PREVWORD + getWordStr(id)
-    def t(id: Int) = P_TAG + getTagStr(id)
-
-  //  Confidence in correctness: High.
-  //  Reason: proved correct.
-    def deprefixify(nodeName: String): String = nodeName.substring(P_TAG.length)
-  }
 }
 

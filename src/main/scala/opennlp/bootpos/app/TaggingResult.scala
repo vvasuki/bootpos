@@ -50,6 +50,7 @@ class TaggingResult {
     printf("Non training tokens: %.3f\n", novelTokensFrac)
   }
 
+
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def processTaggingResults(results: ArrayBuffer[Array[Boolean]], testData: ArrayBuffer[Array[String]], sentenceSepWord: String)= {

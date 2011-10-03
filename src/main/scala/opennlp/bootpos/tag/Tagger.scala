@@ -15,6 +15,12 @@ trait Tagger extends Serializable{
   // while building compound taggers.
   var wordIntMap = new BijectiveHashMap[String, Int]
   var tagIntMap = new BijectiveHashMap[String, Int]
+
+  // The below quantity is used, together with wordIntMap,
+  // to identify words not seen during the training phase.
+  var numWordsTraining = 0
+
+  // The below is used to determine if wordIntMap should be blind to case.
   var bIgnoreCase = true
 
 
@@ -53,6 +59,21 @@ trait Tagger extends Serializable{
   def test(testData: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]]
 
   def trainWithDictionary(dictionary: Dictionary) = train(dictionary.lstData.toIterator: Iterator[Array[String]])
+
+//  Confidence in correctness: High.
+//  Reason: Well tested.
+  def getResults(testData: ArrayBuffer[Array[Int]], bestTags: Array[Int]) = {
+    val numTokens = testData.length
+    var resultPairs = new ArrayBuffer[Array[Boolean]](numTokens)
+    resultPairs = resultPairs.padTo(numTokens, null)
+    for(tokenNum <- 0 to numTokens-1) {
+      var token = testData(tokenNum)(0)
+      val bNovel = token >= numWordsTraining
+      val bCorrect = bestTags(tokenNum) == testData(tokenNum)(1)
+      resultPairs(tokenNum) = Array(bCorrect, bNovel)
+    }
+    resultPairs
+  }
 }
 
 class WordTagProbabilities(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger {
@@ -94,13 +115,21 @@ class WordTagProbabilities(sentenceSepTagStr :String, sentenceSepWordStr: String
     }
     val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
     var resultPair = new ArrayBuffer[Array[Boolean]](testData.length)
+    val tagCountTest = new ExpandingArray[Double](numTags)
+    val tagErrorCount = new ExpandingArray[Double](numTags)
     testData.indices.foreach(i => {
         val wordId = testData(i)(0)
         val tagId = testData(i)(1)
+        tagCountTest.addAt(tagId, 1)
         val bNovel = wordId >= wordTagFrequencies.numRows
         val bCorrect = getBestTag(testData(i)(0)) == tagId
+        if(!bCorrect) tagErrorCount.addAt(tagId, 1)
         resultPair += Array(bCorrect, bNovel)
       })
+    val tagErrorRate = (tagErrorCount zip tagCountTest).map(x => x._1/x._2)
+    val tagMaxError = tagErrorRate.indexOf(tagErrorRate.max)
+    println("tagErrorRate " + tagErrorRate)
+    println("tagMaxError " + getTagStr(tagMaxError))
     resultPair
   }
 
