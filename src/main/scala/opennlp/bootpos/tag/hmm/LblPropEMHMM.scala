@@ -21,17 +21,17 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats = false) {
     lblPropTagger.trainWithDictionary(dictionary)
   }
 
+//  Confidence in correctness: Low.
+//  Reason: Implementation incomplete.
   override def processUntaggedData(textIn: ArrayBuffer[String]) = {
     val textInUp = textIn.map(_.map(_.toUpper))
     val tokenSeq1 = textInUp.map(x => lblPropTagger.getWordId(x))
-/*    lblPropTagger.updateWordAfterWordMap(tokenSeq1.iterator)
-    val graph = lblPropTagger.getGraph()
-    JuntoRunner(graph, 1.0, .01, .01, BootPos.numIterations, false)
-    val wtMap = lblPropTagger.getPredictions(graph)*/
+    val tags = lblPropTagger.getPredictions(textInUp)
+    
 /*    Ensure that the following, which leads to errors, does not happen above:
     wtMap(x) == sentenceSepTagStr for x != sentenceSepWordStr.*/
     
-//     train(textInUp.map(x => Array(x, wtMap(x))).iterator)
+    train(textInUp.indices.map(x => Array(textInUp(x), tags(x))).iterator)
 
     super.processUntaggedData(textInUp)
   }
