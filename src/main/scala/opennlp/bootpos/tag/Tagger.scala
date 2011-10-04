@@ -65,13 +65,22 @@ trait Tagger extends Serializable{
   def getResults(testData: ArrayBuffer[Array[Int]], bestTags: Array[Int]) = {
     val numTokens = testData.length
     var resultPairs = new ArrayBuffer[Array[Boolean]](numTokens)
+    val tagCountTest = new ExpandingArray[Double](numTags)
+    val tagErrorCount = new ExpandingArray[Double](numTags)
     resultPairs = resultPairs.padTo(numTokens, null)
     for(tokenNum <- 0 to numTokens-1) {
       var token = testData(tokenNum)(0)
       val bNovel = token >= numWordsTraining
-      val bCorrect = bestTags(tokenNum) == testData(tokenNum)(1)
+      val tagActual = testData(tokenNum)(1)
+      val bCorrect = bestTags(tokenNum) == tagActual
+      tagCountTest.addAt(tagActual, 1)
+      if(!bCorrect) tagErrorCount.addAt(tagActual, 1)
       resultPairs(tokenNum) = Array(bCorrect, bNovel)
     }
+    val tagErrorRate = (tagErrorCount zip tagCountTest).map(x => x._1/x._2)
+    val tagMaxError = tagErrorRate.indexOf(tagErrorRate.max)
+    println("tagErrorRate " + tagErrorRate)
+    println("tagMaxError " + getTagStr(tagMaxError))
     resultPairs
   }
 }
@@ -115,21 +124,13 @@ class WordTagProbabilities(sentenceSepTagStr :String, sentenceSepWordStr: String
     }
     val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
     var resultPair = new ArrayBuffer[Array[Boolean]](testData.length)
-    val tagCountTest = new ExpandingArray[Double](numTags)
-    val tagErrorCount = new ExpandingArray[Double](numTags)
     testData.indices.foreach(i => {
         val wordId = testData(i)(0)
         val tagId = testData(i)(1)
-        tagCountTest.addAt(tagId, 1)
         val bNovel = wordId >= wordTagFrequencies.numRows
         val bCorrect = getBestTag(testData(i)(0)) == tagId
-        if(!bCorrect) tagErrorCount.addAt(tagId, 1)
         resultPair += Array(bCorrect, bNovel)
       })
-    val tagErrorRate = (tagErrorCount zip tagCountTest).map(x => x._1/x._2)
-    val tagMaxError = tagErrorRate.indexOf(tagErrorRate.max)
-    println("tagErrorRate " + tagErrorRate)
-    println("tagMaxError " + getTagStr(tagMaxError))
     resultPair
   }
 
