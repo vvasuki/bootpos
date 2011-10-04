@@ -51,6 +51,9 @@ trait LabelPropagation extends Tagger{
       wordTagMap.increment(token, tag)
     }
     numTrainingWords = wordTagMap.numRows
+    // It is possible that some tags, possible according to a dictionary, are not seen in testData.
+    // So the below.
+    wordTagMap.updateSize(numTrainingWords, numTags)
     updateBestTagsOverall
   }
 
@@ -71,6 +74,7 @@ trait LabelPropagation extends Tagger{
     var lstData = dictionary.lstData.
       map(x => Array(getWordId(x(0)), getTagId(x(1))))
     updateWordTagMap(lstData.iterator)
+    println("numTrainingWords "+ numTrainingWords)
     // wordTagMap.matrix.foreach(x => println(x.indexWhere(_>0)))
   }
 
@@ -79,21 +83,25 @@ trait LabelPropagation extends Tagger{
   def makeWordTagEdges = {
     val edges = new ListBuffer[Edge]()
     val numWords = wordTagMap.numRows
+    // println("wordTagMap.numRows "+wordTagMap.numRows)
     for(word <- 0 to numWords-1) {
 //      Add (w, t) edges
 //        In the case of novel words, simply use the uniform distribution on all possible tags excluding the sentence separator tag.
       if(word >= numTrainingWords)
-        (0 to numTags-1).filter(x => x != sentenceSepTag).foreach{
+        tagsToPropagate.foreach{
           x => edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), 1/(numTags-1).toDouble)
         }
       else {
 //        In case of known words, this would be derived from wordTagMap.
 //      Assumption : Every word w \in Training has atleast one tag associated with it.
-        var numTaggings = wordTagMap(word).sum
-        (0 to numTags-1).filter(wordTagMap(word, _) > 0).foreach(x =>
+        val numTaggings = wordTagMap(word).sum
+        val possibleTags = (0 to numTags-1).filter(wordTagMap(word, _) > 0)
+        // println("possibleTags " + possibleTags)
+        possibleTags.foreach(x =>
           edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), wordTagMap(word, x)/numTaggings.toDouble))
       }
     }
+    // println(edges.mkString("\n"))
     edges
   }
 
@@ -159,10 +167,13 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
   //  Reason: proved correct.
   def train(iter: Iterator[Array[String]]) = {
     val txtIn = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
+    println("training.. ")
+    // println(txtIn.map(x => x(0) + " " + x(1)).mkString("\n"))
     updateWordTagMap(txtIn.iterator)
     addTokenEdges(txtIn.map(_(0)), txtIn.map(_(1)))
   }
 
+  
 // See the CHOICE-note below.
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
@@ -172,10 +183,13 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     // Make graph
     // Proved correct.
     addTokenEdges(tokens.toList)
-    val edges = tokenEdges ++ makeWordTagEdges
+    val wordTagEdges = makeWordTagEdges
+    println(wordTagMap)
+    println(wordTagEdges.mkString("\n"))
+    val edges = tokenEdges ++ wordTagEdges
+    println(tokenEdges.mkString("\n"))
     val labels = getLabels
-    // TODO: Check the call and the result below.
-    val graph = GraphBuilder(edges.toList, labels.toList, null)
+    val graph = GraphBuilder(edges.toList, labels.toList)
     // Run junto.
     JuntoRunner(graph, 1.0, .01, .01, BootPos.numIterations, false)
 
@@ -201,6 +215,10 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //  Reason: Proved correct.
   def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
     val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
+    // It is possible that some tags are newly seen in the test data.
+    // So the below.
+    wordTagMap.updateSize(numWordsTotal, numTags)
+
     val testTokensStr = testDataIn.map(x => x(0))
     val tagsFinal = getPredictions(testTokensStr).map(x => getTagId(x))
     getResults(testData, tagsFinal.toArray)

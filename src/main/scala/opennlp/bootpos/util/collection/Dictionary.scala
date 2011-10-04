@@ -35,7 +35,7 @@ class Dictionary(iter: Iterator[Array[String]], wordsConsidered: Set[String] = n
       if(wordSet contains x) numTokensSeen += 1
     })
     completeness = numTokensSeen/ numTokens.toDouble
-    println(completeness)
+    println("Dict completeness "+ completeness)
   }
 
 /*  Confidence in correctness: High
@@ -44,5 +44,7 @@ class Dictionary(iter: Iterator[Array[String]], wordsConsidered: Set[String] = n
     wordSet += word
     lstData += Array(word, descr)
   }
+
+  override def toString = lstData.toString
 
 }
