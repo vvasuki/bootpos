@@ -32,14 +32,14 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
     numWordsSeen = wordIntMap.size
     val numIterations = BootPos.numIterations
 //     Note: wordCount updated using untagged data.
-    println(this)
+    log info(this)
     wordTagStatsFinal.updateWordCount(text, this)
 
-    println("\n\nInitial counts:")
-    println(wordTagStatsFinal)
-    println("\n\nInitial params:")
-    println(this)
-    println("bUseTrainingStats: " + bUseTrainingStats)
+    log info("\n\nInitial counts:")
+    log info(wordTagStatsFinal)
+    log info("\n\nInitial params:")
+    log info(this)
+    log info("bUseTrainingStats: " + bUseTrainingStats)
     for(i <- 1 to numIterations){
       var wordTagStats: WordTagStatsProb = null
       wordTagStats = reflectionUtil.deepCopy(wordTagStatsFinal)
@@ -50,13 +50,13 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
         Also it may not be desirable to totally forget things learned
         with either the trainingStats (which possibly is from a dictionary.)*/
         wordTagStats.scaleDown(1/wordTagStats.numWords.toDouble)
-        println("Not using training stats.")
-        println(wordTagStats)
+        log info("Not using training stats.")
+        log info(wordTagStats)
       }
-      println("Iteration: " + i)
+      log info("Iteration: " + i)
       wordTagStats.updateCountsEM(text, this)
-/*      println("\n\nParams:")
-      println(this)*/
+/*      log info("\n\nParams:")
+      log info(this)*/
     }
   }
   
@@ -84,16 +84,16 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
       if(forwardPr(i, tag) == math.log(0))
 //       if(false)
       {
-        println("i "+i + " token "+token + " prevTag "+ prevTag + " tag " + tag)
-        println("wordTagCount(token, tag) " + wordTagStatsFinal.wordTagCount(token, tag) +
+        log info("i "+i + " token "+token + " prevTag "+ prevTag + " tag " + tag)
+        log info("wordTagCount(token, tag) " + wordTagStatsFinal.wordTagCount(token, tag) +
         " logPrWGivenT(token, tag) " + logPrWGivenT(token, tag)+
         " trPr "+ transitionPr)
-        println("forwardPr(i-1, prevTag) "+ forwardPr(i-1, prevTag))
-        println("arcPr "+ getArcPr(tag, prevTag, token))
-        println("forwardPr(i, tag) " + forwardPr(i, tag))
+        log info("forwardPr(i-1, prevTag) "+ forwardPr(i-1, prevTag))
+        log info("arcPr "+ getArcPr(tag, prevTag, token))
+        log info("forwardPr(i, tag) " + forwardPr(i, tag))
       }
     }
-//     println(forwardPr.matrix.zipWithIndex)
+//     log info(forwardPr.matrix.zipWithIndex)
     forwardPr
   }
 
@@ -118,7 +118,7 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
       val transitionPr = backwardPr(i, tag) + getArcPr(tag, prevTag, token)
       backwardPr(i-1, prevTag) = mathUtil.logAdd(backwardPr(i-1, prevTag), transitionPr)
     }
-    // println(backwardPr.map(math.exp(_)))
+    // log info(backwardPr.map(math.exp(_)))
     backwardPr
   }
 }

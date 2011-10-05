@@ -95,8 +95,8 @@ Correctly updates the following:
 
     wordTagStatsFinal.updateCounts(lstData, this)
     numWordsTraining = numWordsTotal
-/*    println(wordTagStatsFinal)
-    println(this)*/
+/*    log info(wordTagStatsFinal)
+    log info(this)*/
   }
 
 /*
@@ -142,16 +142,16 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
     else
       wordTagStatsFinal.setLogPrTGivenTFromTCount(this)
     wordTagStatsFinal.setLogPrWGivenT(this, dictionary)
-    println("tokens in dictionary data: " + lstData.length)
-    println(wordTagStatsFinal)
-    println(this)
+    log info("tokens in dictionary data: " + lstData.length)
+    log info(wordTagStatsFinal)
+    log info(this)
   }
   
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
-    println(wordTagStatsFinal)
-    println(this)
+    log info(wordTagStatsFinal)
+    log info(this)
     val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
     val numTokens = testData.length
     val numTags = wordTagStatsFinal.numTags;
@@ -174,20 +174,20 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
 
       bSeekSentence = token == sentenceSepWord
 
-//      println("logPrSeq "+ logPrSequence(tokenNum))
-//      println("# "+tokenNum + " w " + token + " tg "+ tag + " tg_{-1} "+ bestPrevTag(tokenNum, tag))
+//      log info("logPrSeq "+ logPrSequence(tokenNum))
+//      log info("# "+tokenNum + " w " + token + " tg "+ tag + " tg_{-1} "+ bestPrevTag(tokenNum, tag))
     }
 
     val bestTags = new Array[Int](numTokens)
     bestTags(numTokens-1) = logPrSequence(numTokens).indexOf(logPrSequence(numTokens).max)
     var perplexity = math.exp(-logPrSequence(numTokens, bestTags(numTokens-1))/numTokens)
-    println("Perplexity: " + perplexity)
+    log info("Perplexity: " + perplexity)
 
     for(tokenNum <- numTokens-2 to 0 by -1) {
       bestTags(tokenNum) = bestPrevTag(tokenNum+2, bestTags(tokenNum+1))
     }
     
-//      println(tokenNum + " : " + token + " : "+ resultPair(tokenNum))
+//      log info(tokenNum + " : " + token + " : "+ resultPair(tokenNum))
 
     getResults(testData, bestTags)
   }

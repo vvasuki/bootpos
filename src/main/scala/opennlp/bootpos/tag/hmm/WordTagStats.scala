@@ -47,7 +47,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     tagBeforeTagCount = tagBeforeTagCount.map(_ * p)
     tagCount = tagCount.map(_ * p)
     wordCount = wordCount.map(_ * p)
-    // println(this)
+    // log info(this)
   }
 
 /*
@@ -90,7 +90,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
       tag = fields(1);
       word = fields(0)){
       incrementWordTagCounts(word, tag)
-//      println(prevTag+ " t " + tag + " w "+ word)
+//      log info(prevTag+ " t " + tag + " w "+ word)
     }
   }
 
@@ -137,7 +137,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
       val backOffProb = tagCount(tag1)/numTokens.toDouble
       var x = (tagBeforeTagCount(tag2, tag1) + s*backOffProb)/(tagBeforeTagCount(tag2).sum + s).toDouble
       hmm.logPrTGivenT(tag1, tag2) = math.log(x)
-//       println(tag1 + "|" + tag2+ " = " + x)
+//       log info(tag1 + "|" + tag2+ " = " + x)
     }
   }
 
@@ -147,7 +147,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     for(tag1 <- (0 to numTags-1); tag2 <- (0 to numTags-1)) {
       var x = tagCount(tag1)/numTokens
       hmm.logPrTGivenT(tag1, tag2) = math.log(x)
-//       println(tag1 + "|" + tag2+ " = " + x)
+//       log info(tag1 + "|" + tag2+ " = " + x)
     }
   }
 
@@ -272,7 +272,7 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
     val wordTagStatsFinal = hmm.wordTagStatsFinal
 
     val logPrTokens = forwardPr(numTokensUntagged-1, sentenceSepTag)
-    println("logPrTokens " + logPrTokens)
+    log info("logPrTokens " + logPrTokens)
 
     prepareTableSizes(hmm.numWordsTotal, wordTagStatsFinal.numTags)
 /*
@@ -304,11 +304,11 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
       tagBeforeTagCount(prevTag, tag) = tagBeforeTagCount(prevTag, tag) + math.exp(prTagPair)
     }
 
-    println(this)
+    log info(this)
 
     setLogPrTGivenT(hmm)
     setLogPrWGivenT(hmm)
-    println(hmm)
+    log info(hmm)
   }
 
 }
