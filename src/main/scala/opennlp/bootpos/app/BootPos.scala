@@ -1,6 +1,8 @@
 package opennlp.bootpos.app
 import opennlp.bootpos.util.collection._
 import scala.collection.mutable.ArrayBuffer
+// import ch.qos.logback._
+import org.slf4j.LoggerFactory
 
 object BootPos {
 //  The file whence parameters such as laungage, corpus, taggerType are read.
@@ -82,9 +84,12 @@ object BootPos {
     println(results.mkString("\n"))
   }
 }
-object BootPosTest {
+object BootPosTest extends {
+  val log = LoggerFactory.getLogger(this.getClass)
   def main(args: Array[String]): Unit = {
+    log info( "Testing")
     collectionsTest.vpTest
     collectionsTest.serializabilityTest
+    
   }
 }

@@ -6,8 +6,10 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.LinkedList
 import java.util.NoSuchElementException
 import opennlp.bootpos.util.collection._
+import org.slf4j.LoggerFactory
 
 trait Tagger extends Serializable{
+  val log = LoggerFactory.getLogger(this.getClass)
   val TAGNUM_IN = 25
   val WORDNUM_IN = 3000
   var bestTagsOverall = new LinkedList[Int]()
@@ -79,8 +81,8 @@ trait Tagger extends Serializable{
     }
     val tagErrorRate = (tagErrorCount zip tagCountTest).map(x => x._1/x._2)
     val tagMaxError = tagErrorRate.indexOf(tagErrorRate.max)
-    println("tagErrorRate " + tagErrorRate)
-    println("tagMaxError " + getTagStr(tagMaxError))
+    log info("tagErrorRate " + tagErrorRate)
+    log info("tagMaxError " + getTagStr(tagMaxError))
     resultPairs
   }
 }
