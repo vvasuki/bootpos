@@ -13,7 +13,6 @@ import opennlp.bootpos.app._
 trait LabelPropagation extends Tagger{
   val sentenceSepTag = 0
   val wordTagMap = new MatrixBufferDense[Int](WORDNUM_IN, TAGNUM_IN)
-  var numTrainingWords = 0
 
   def tagsToPropagate = (0 to numTags-1) filterNot(_ == sentenceSepTag)
 
@@ -51,10 +50,10 @@ trait LabelPropagation extends Tagger{
     for(Array(token, tag) <- txtIn){
       wordTagMap.increment(token, tag)
     }
-    numTrainingWords = wordTagMap.numRows
+    numWordsTraining = wordTagMap.numRows
     // It is possible that some tags, possible according to a dictionary, are not seen in testData.
     // So the below.
-    wordTagMap.updateSize(numTrainingWords, numTags)
+    wordTagMap.updateSize(numWordsTraining, numTags)
     updateBestTagsOverall
   }
 
@@ -68,14 +67,14 @@ trait LabelPropagation extends Tagger{
 
 //  Input: word-token pairs from tagged text.
 //  State alteration: Appropriately update the wordTagMap,
-//    numTrainingWords.
+//    numWordsTraining.
 //  Confidence in correctness: High.
 //  Reason: proved correct.
   override def trainWithDictionary(dictionary: Dictionary) = {
     var lstData = dictionary.lstData.
       map(x => Array(getWordId(x(0)), getTagId(x(1))))
     updateWordTagMap(lstData.iterator)
-    log info("numTrainingWords "+ numTrainingWords)
+    log info("numWordsTraining "+ numWordsTraining)
     // wordTagMap.matrix.foreach(x => log info(x.indexWhere(_>0)))
   }
 
@@ -88,7 +87,7 @@ trait LabelPropagation extends Tagger{
     for(word <- 0 to numWords-1) {
 //      Add (w, t) edges
 //        In the case of novel words, simply use the uniform distribution on all possible tags excluding the sentence separator tag.
-      if(word >= numTrainingWords)
+      if(word >= numWordsTraining)
         tagsToPropagate.foreach{
           x => edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), 1/(numTags-1).toDouble)
         }

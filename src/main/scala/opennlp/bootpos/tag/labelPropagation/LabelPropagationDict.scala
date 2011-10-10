@@ -28,7 +28,7 @@ class LabelPropagationDict(sentenceSepTagStr :String, sentenceSepWordStr: String
 
 //  Input: word-token pairs from tagged text.
 //  State alteration: Appropriately update the wordTagMap and wordAfterWordMap tables,
-//    numTags and numTrainingWords.
+//    numTags and numWordsTraining.
 //  Confidence in correctness: High.
 //  Reason: proved correct.
   def train(iter: Iterator[Array[String]]) = {
@@ -107,7 +107,7 @@ class LabelPropagationDict(sentenceSepTagStr :String, sentenceSepWordStr: String
 //      This Label is correctly chosen based on actual tags
 //      observed in the test data.
   def prepareGraphData(testData: ArrayBuffer[Array[Int]]): List[Label] = {
-    var wordTagMapTest = new MatrixBufferDense[Int]((1.5*numTrainingWords).toInt, numTags)
+    var wordTagMapTest = new MatrixBufferDense[Int]((1.5*numWordsTraining).toInt, numTags)
     val tokenList = testData.map(x => x(0))
     var testWordSet = tokenList.toSet
     updateWordAfterWordMap(tokenList.iterator)
@@ -166,7 +166,7 @@ class LabelPropagationDict(sentenceSepTagStr :String, sentenceSepWordStr: String
       val Array(token, actualTag) = testData(i)
       val tokenStr = getWordStr(token)
 
-      val bNovelWord = (token >= numTrainingWords)
+      val bNovelWord = (token >= numWordsTraining)
 //       println("tokenStr: "+ getWordStr(token)+ " tag "+ tagStr + "act: "+getTagStr(actualTag))
       val tagStr = wtMap(tokenStr)
       val bCorrect = tagIntMap(tagStr) == actualTag

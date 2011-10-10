@@ -175,7 +175,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     var wordField = 1
     var tagField = 3;
     var sep = '\t'
-    if(language.equals("danish")) tagField = 4
+    if(language.equalsIgnoreCase("da")) tagField = 4
     if(mode.equals(WIKTIONARY))tagField = 2
     else if(! (BootPos.conllCorpora contains corpus)) {
       wordField = 0; tagField = 1;
