@@ -24,6 +24,7 @@ Bootpos 0.1 commands:
   build         build Bootpos with SBT
   config        run Bootpos on the specified config file
   dataprep      Do sentence detection or tokenization.
+  deploy        Copy configuration files to fast machine(curry).
   test          run some unit-tests.
   run           run the main method of a given class
 
@@ -34,6 +35,10 @@ EOF
 if [ $CMD = 'build' ]; then
 
     java -jar $BOOTPOS_DIR/bin/sbt-launch.jar "$@"
+
+elif [ $CMD = 'deploy' ]; then
+
+    scp -r $BOOTPOS_DIR/src/main/resources/ curry.ling.utexas.edu:bootpos/src/main
 
 else 
 
