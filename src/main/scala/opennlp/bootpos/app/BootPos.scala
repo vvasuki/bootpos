@@ -55,6 +55,7 @@ object BootPos {
     println("Using universal tags? "+ bUniversalTags)
     println("Using wiktionary? "+ bWiktionary)
     println("Using training data? "+ bUseTrainingData)
+    println("Training tokens limit "+ taggedTokensLimit)
     println("Raw tokens limit "+ rawTokensLimit)
 
     if(bUseTrainingData)

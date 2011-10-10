@@ -96,7 +96,8 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     }
     else if(!bTrainingDataAsDictionary) {
       if(BootPos.taggedTokensLimit > 0)
-      tagger.train(iter.take(BootPos.taggedTokensLimit))
+        iter = iter.take(BootPos.taggedTokensLimit)
+      tagger.train(iter)
     }
     else {
       val dict = new Dictionary(iter)
