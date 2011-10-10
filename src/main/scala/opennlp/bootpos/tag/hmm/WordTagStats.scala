@@ -7,8 +7,10 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.LinkedList
 import opennlp.bootpos.util.collection._
 import opennlp.bootpos.util._
+import org.slf4j.LoggerFactory
 
 class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
+  val log = LoggerFactory.getLogger(this.getClass)
 // entry (i, j) will count number of occurances of tag i before tag j
 // The following are Double arrays because in case of EM-HMM, counts could be a non-integer.
 //   Purpose: To estimate Pr(tag(i)|tag(i-1))
@@ -304,11 +306,11 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
       tagBeforeTagCount(prevTag, tag) = tagBeforeTagCount(prevTag, tag) + math.exp(prTagPair)
     }
 
-    log info(this)
+    log info(this.toString)
 
     setLogPrTGivenT(hmm)
     setLogPrWGivenT(hmm)
-    log info(hmm)
+    log info(hmm.toString)
   }
 
 }

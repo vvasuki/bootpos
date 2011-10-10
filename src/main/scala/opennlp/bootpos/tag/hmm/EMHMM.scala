@@ -32,13 +32,13 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
     numWordsSeen = wordIntMap.size
     val numIterations = BootPos.numIterations
 //     Note: wordCount updated using untagged data.
-    log info(this)
+    log info(this.toString)
     wordTagStatsFinal.updateWordCount(text, this)
 
     log info("\n\nInitial counts:")
-    log info(wordTagStatsFinal)
+    log info(wordTagStatsFinal.toString)
     log info("\n\nInitial params:")
-    log info(this)
+    log info(this.toString)
     log info("bUseTrainingStats: " + bUseTrainingStats)
     for(i <- 1 to numIterations){
       var wordTagStats: WordTagStatsProb = null
@@ -51,7 +51,7 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
         with either the trainingStats (which possibly is from a dictionary.)*/
         wordTagStats.scaleDown(1/wordTagStats.numWords.toDouble)
         log info("Not using training stats.")
-        log info(wordTagStats)
+        log info(wordTagStats.toString)
       }
       log info("Iteration: " + i)
       wordTagStats.updateCountsEM(text, this)

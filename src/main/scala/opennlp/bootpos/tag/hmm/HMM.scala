@@ -143,15 +143,15 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
       wordTagStatsFinal.setLogPrTGivenTFromTCount(this)
     wordTagStatsFinal.setLogPrWGivenT(this, dictionary)
     log info("tokens in dictionary data: " + lstData.length)
-    log info(wordTagStatsFinal)
-    log info(this)
+    log info(wordTagStatsFinal.toString)
+    log info(this.toString)
   }
   
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
-    log info(wordTagStatsFinal)
-    log info(this)
+    log info(wordTagStatsFinal.toString)
+    log.info(this.toString)
     val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
     val numTokens = testData.length
     val numTags = wordTagStatsFinal.numTags;

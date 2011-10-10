@@ -74,7 +74,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //  Reason: Well tested.
   def train(mode: String) = {
     println("Training with mode "+ mode)
-    val iter = getWordTagIteratorFromFile(mode)
+    var iter = getWordTagIteratorFromFile(mode)
     val tokensUntagged = new ArrayBuffer[String]()
 
     if(bProcessUntaggedData){
@@ -94,7 +94,10 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
       dict.updateCompleteness(tokensUntagged)
       tagger.trainWithDictionary(dict)
     }
-    else if(!bTrainingDataAsDictionary) tagger.train(iter)
+    else if(!bTrainingDataAsDictionary) {
+      if(BootPos.taggedTokensLimit > 0)
+      tagger.train(iter.take(BootPos.taggedTokensLimit))
+    }
     else {
       val dict = new Dictionary(iter)
       dict.removeDuplicateEntries
