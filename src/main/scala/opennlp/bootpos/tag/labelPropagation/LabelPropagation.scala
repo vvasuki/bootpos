@@ -134,6 +134,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 
   // Updated using addTokenEdges
   val tokenEdges = new ListBuffer[Edge]()
+  val tokenLabels = new ListBuffer[Label]()
 
   // Updated using addTokenEdges
   var numTokens = 0
@@ -158,7 +159,8 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 
       // Create token-tag or token-wordType edge.
       if(tagList != null)
-        tokenEdges += new Edge(nodeNamer.tok(tokenId), nodeNamer.t(tagList(seqNum)), 1)
+        tokenLabels += LabelCreator(nodeNamer.tok(tokenId), nodeNamer.t(tagList(seqNum)))
+        // tokenEdges += new Edge(nodeNamer.tok(tokenId), nodeNamer.t(tagList(seqNum)), 1)
       else
         tokenEdges += new Edge(nodeNamer.tok(tokenId), nodeNamer.w(prevToken), 1)
     }
@@ -195,7 +197,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     // log info("wtEdges" + wordTagEdges.mkString("\n"))
     val edges = tokenEdges ++ wordTagEdges
     // log info("tokenEdges " + tokenEdges.mkString("\n"))
-    val labels = getLabels
+    val labels = getLabels ++ tokenLabels
     log info("labels " + labels.mkString("\n"))
     val graph = GraphBuilder(edges.toList, labels.toList)
     // Run junto.

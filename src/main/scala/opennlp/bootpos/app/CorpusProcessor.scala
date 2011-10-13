@@ -32,12 +32,12 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   }
 
   // Determine the full name of the language.
-    val LANGUAGE_CODE_MAP = getClass.getResource("/lang/languageCodes.properties").getPath
-    val props = new java.util.Properties
-    val file = new java.io.FileInputStream(LANGUAGE_CODE_MAP)
-    props.load(file)
-    file.close
-    val languageStr = props.getProperty(language, language)
+  val LANGUAGE_CODE_MAP = getClass.getResource("/lang/languageCodes.properties").getPath
+  val props = new java.util.Properties
+  val file = new java.io.FileInputStream(LANGUAGE_CODE_MAP)
+  props.load(file)
+  file.close
+  val languageStr = props.getProperty(language, language)
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
@@ -79,8 +79,12 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 
     if(bProcessUntaggedData){
       println("Processing untagged data.")
-      val untaggedDataFile = getFileName("raw")
-      tokensUntagged ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap(), maxLines = BootPos.rawTokensLimit).getColumn(0)
+      var untaggedDataFile = getFileName("raw")
+      if(BootPos.bRawDataFromTrainingFile) {
+        tokensUntagged ++= getWordTagIteratorFromFile("train").map(_(0))
+      }
+      else
+        tokensUntagged ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap(), maxLines = BootPos.rawTokensLimit).getColumn(0)
       if(tokensUntagged.head != sentenceSepWord) tokensUntagged prepend sentenceSepWord
       if(tokensUntagged.last != sentenceSepWord) tokensUntagged += sentenceSepWord
     }

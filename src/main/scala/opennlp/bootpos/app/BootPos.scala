@@ -11,6 +11,7 @@ object BootPos {
 //The following run-time settings are described in detail in the file RUNTIME_SETTINGS_FILE
   var bUniversalTags = false
   var bUseTrainingData = true; var bWiktionary = false;
+  var bRawDataFromTrainingFile = false
   var testCorpus = ""
   var taggerType = ""
   var conllCorpora : List[String] = null
@@ -36,6 +37,7 @@ object BootPos {
     bUseTrainingData = props.getProperty("bUseTrainingData").toBoolean
     bUseAsDictionary =props.getProperty("bUseAsDictionary").toBoolean
     bWiktionary = props.getProperty("bWiktionary").toBoolean
+    bRawDataFromTrainingFile = props.getProperty("bRawDataFromTrainingFile").toBoolean
     testCorpus = props.getProperty("testCorpus")
     taggerType = props.getProperty("taggerType")
     DATA_DIR = props.getProperty("DATA_DIR")
@@ -54,6 +56,7 @@ object BootPos {
     println("taggerType: "+ taggerType)
     println("Using universal tags? "+ bUniversalTags)
     println("Using wiktionary? "+ bWiktionary)
+    println("bRawDataFromTrainingFile? "+ bRawDataFromTrainingFile)
     println("Using training data? "+ bUseTrainingData)
     println("Training tokens limit "+ taggedTokensLimit)
     println("Raw tokens limit "+ rawTokensLimit)

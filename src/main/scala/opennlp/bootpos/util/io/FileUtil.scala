@@ -14,7 +14,7 @@ object fileUtil {
     // println("dir "+ dir)
     val filesInDir = new File(dir).list.toList
     // println("files " + filesInDir)
-    val files = filesInDir.filter(condition)
+    val files = filesInDir.filter(condition).sorted
     dir + files.head
   }
 }
