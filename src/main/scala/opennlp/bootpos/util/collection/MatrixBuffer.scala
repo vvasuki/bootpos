@@ -160,6 +160,24 @@ class MatrixBufferDense[T] (rowsIn: Int, colsIn: Int, defaultValue: T = null.asI
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
+  def setRow[Y<:  Seq[T]](row: Int, values : Y) = {
+    matrix(row) = new ExpandingArray[T](values.length, defaultValue)
+    matrix(row) ++= values
+    updateSize(row+1, values.length)
+  }
+
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def addRow[Y <:  Seq[T]](values: Y ) = setRow(numRows, values)
+
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def setRows(M : IndexedSeq[IndexedSeq[T]]) = {
+    M.indices.foreach(x => setRow(x, M(x)))
+  }
+
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
   def apply(row: Int, col: Int): T = {
     matrix(row).padTill(numCols, defaultValue)
     matrix(row)(col)
@@ -206,6 +224,21 @@ class MatrixBufferDense[T] (rowsIn: Int, colsIn: Int, defaultValue: T = null.asI
       matrix(row)(col) = numeric.plus(apply(row, col), (1.0).asInstanceOf[T])
     }
     
+  }
+
+
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def transpose = {
+    val m = new MatrixBufferDense[T](numCols, numRows, defaultValue, bSetInitSize = true)
+    (0 to numCols - 1) foreach (x => m.setRow(x, getCol(x)))
+    m
+  }
+
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def toTsv = {
+    matrix.map(_.mkString("\t")).mkString("\n")
   }
 }
 

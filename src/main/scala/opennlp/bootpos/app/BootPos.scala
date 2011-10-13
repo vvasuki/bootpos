@@ -80,14 +80,15 @@ object BootPos {
       var wtp = new CorpusProcessor(language, corpus, taggerType)
       wtp.test
     }
-    val results = new ArrayBuffer[String](10)
+    val results = new MatrixBufferDense[String](0, 0)
     testCorpus match {
     case "all" => {
-        results ++= allCorpora.map(testOnCorpus)
+        allCorpora.map(x => results addRow testOnCorpus(x))
       }
-    case x => results += testOnCorpus(x)
+    case x => results addRow testOnCorpus(x)
     }
-    println(results.mkString("\n"))
+    println(results.toTsv)
+    println(results.transpose.toTsv)
   }
 }
 object BootPosTest extends {

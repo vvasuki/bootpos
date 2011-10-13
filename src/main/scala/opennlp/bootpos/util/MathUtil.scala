@@ -10,4 +10,5 @@ object mathUtil{
     if(x >= y) x + java.lang.Math.log1p(math.exp(y-x))
     else y + java.lang.Math.log1p(math.exp(x-y))
   }
+
 }
