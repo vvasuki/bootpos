@@ -7,10 +7,12 @@ import opennlp.bootpos.util.io._
 import opennlp.bootpos.tag._
 import opennlp.bootpos.tag.hmm._
 import opennlp.bootpos.tag.labelPropagation._
+import org.slf4j.LoggerFactory
 import java.util.NoSuchElementException
 import java.io.File
 
 class CorpusProcessor(language: String, corpus: String, taggerType: String = "WordTagProbabilities"){
+  val log = LoggerFactory.getLogger(this.getClass)
 
   val DATA_DIR = BootPos.DATA_DIR
   val TEST_DIR = "test"
@@ -73,25 +75,26 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def train(mode: String) = {
-    println("Training with mode "+ mode)
+    log info("Training with mode "+ mode)
     var iter = getWordTagIteratorFromFile(mode)
     val tokensUntagged = new ArrayBuffer[String]()
 
     if(bProcessUntaggedData){
-      println("Processing untagged data.")
-      var untaggedDataFile = getFileName("raw")
+      log info("Processing untagged data.")
       if(BootPos.bRawDataFromTrainingFile) {
         tokensUntagged ++= getWordTagIteratorFromFile("train").map(_(0))
       }
-      else
+      else {
+        var untaggedDataFile = getFileName("raw")
         tokensUntagged ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap(), maxLines = BootPos.rawTokensLimit).getColumn(0)
+      }
       if(tokensUntagged.head != sentenceSepWord) tokensUntagged prepend sentenceSepWord
       if(tokensUntagged.last != sentenceSepWord) tokensUntagged += sentenceSepWord
     }
 
     if(mode == WIKTIONARY) {
       // get words to consider.
-      println("Loading test words too while picking dictionary entries.")
+      log info("Loading test words too while picking dictionary entries.")
       val testWords = getWordTagIteratorFromFile(TEST_DIR).map(_(0)).toSet
       val dict = new Dictionary(iter, testWords ++ tokensUntagged)
       dict.addEntry(sentenceSepWord, sentenceSepTag)
@@ -118,19 +121,19 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def test = {
-    println("Testing " + language + ' ' + corpus);
+    log info("Testing " + language + ' ' + corpus);
 
     tagResults = new TaggingResult()
     val iter = getWordTagIteratorFromFile(TEST_DIR)
     val testData = new ArrayBuffer[Array[String]](10000)
     iter.copyToBuffer(testData)
-    println("test tokens: " + testData.length)
+    log info("test tokens: " + testData.length)
     val results = tagger.test(testData)
     tagResults.processTaggingResults(results, testData, sentenceSepWord)
 
     tagResults.updateAccuracy
-    // println("Most frequent tag overall: "+ tagger.bestTagsOverall)
-    if(BootPos.bUniversalTags) println(tagMap.unmappedTags + " unmapped tags.")
+    // log info("Most frequent tag overall: "+ tagger.bestTagsOverall)
+    if(BootPos.bUniversalTags) log info(tagMap.unmappedTags + " unmapped tags.")
     val corpusStr = language + "-" + corpus
     corpusStr + "\t"+tagResults.toTsv
   }
@@ -154,7 +157,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     val subDir = fileType.replace("raw", "train")
     dir += '/'+ subDir + '/'
     val file = fileUtil.getFilePath(dir, (x => (x contains fileType) && !(x contains ".ref")))
-    println("file: " + file)
+    log info("file: " + file)
     file
   }
 
@@ -173,7 +176,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 //    Reason: Used many times without problems.
   def getWordTagIteratorFromFile(mode: String): Iterator[Array[String]] = {
 //      Determine wordField, tagField, sep
-    println("mode "+ mode)
+    log info("mode "+ mode)
     val file = getFileName(mode)
 
     var wordField = 1
