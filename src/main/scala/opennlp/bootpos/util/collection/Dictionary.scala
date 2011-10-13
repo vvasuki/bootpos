@@ -35,6 +35,7 @@ class Dictionary(iter: Iterator[Array[String]], wordsConsidered: Set[String] = n
       if(wordSet contains x) numTokensSeen += 1
     })
     completeness = numTokensSeen/ numTokens.toDouble
+    completeness = completeness * 0.9999
     println("Dict completeness "+ completeness)
   }
 

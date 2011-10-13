@@ -195,6 +195,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   }
 
 /*
+  ASSUMPTION: dictionary.completeness < 1.
   Choose Pr(w \notin W) = dictionary.completeness.
   Set Pr(w \notin W_t) = Pr(w \notin W)
   Pr(w \in W|t) = Pr(w | w \in W_t) Pr(w \in W_t|t).
