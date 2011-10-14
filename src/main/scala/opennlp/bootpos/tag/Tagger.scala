@@ -79,7 +79,10 @@ trait Tagger extends Serializable{
       if(!bCorrect) tagErrorCount.addAt(tagActual, 1)
       resultPairs(tokenNum) = Array(bCorrect, bNovel)
     }
-    val tagErrorRate = (tagErrorCount zip tagCountTest).map(x => x._1/x._2)
+    tagErrorCount.padTill(numTags, 0)
+    // log debug "tagErrorCount " + tagErrorCount
+    // log debug "tagCountTest " + tagCountTest
+    val tagErrorRate = (tagErrorCount zip tagCountTest).map(x => x._1/x._2.toDouble)
     val tagMaxError = tagErrorRate.indexOf(tagErrorRate.max)
     log info("tagErrorRate " + tagErrorRate)
     log info("tagMaxError " + getTagStr(tagMaxError))

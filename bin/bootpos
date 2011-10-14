@@ -39,7 +39,7 @@ if [ $CMD = 'build' ]; then
 elif [ $CMD = 'deploy' ]; then
 
     scp -r $BOOTPOS_DIR/src/main/resources/ curry.ling.utexas.edu:bootpos/src/main
-    scp -r $BOOTPOS_DIR/target curry.ling.utexas.edu:bootpos
+#    scp -r $BOOTPOS_DIR/target curry.ling.utexas.edu:bootpos
 
 else 
 

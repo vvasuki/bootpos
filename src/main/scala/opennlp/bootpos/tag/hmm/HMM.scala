@@ -188,6 +188,8 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
     }
     
 //      log info(tokenNum + " : " + token + " : "+ resultPair(tokenNum))
+    // log debug testData.mkString(" ")
+    // log debug bestTags.mkString(" ")
 
     getResults(testData, bestTags)
   }
