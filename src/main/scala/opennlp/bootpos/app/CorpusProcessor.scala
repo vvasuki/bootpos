@@ -82,7 +82,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     if(bProcessUntaggedData | bTrainingDataAsDictionary){
       log info("Processing untagged data.")
       if(BootPos.bRawDataFromTrainingFile) {
-        tokensUntagged ++= getWordTagIteratorFromFile("train").map(_(0))
+        tokensUntagged ++= getWordTagIteratorFromFile("train").take(BootPos.rawTokensLimit).map(_(0))
         log debug "Got " + tokensUntagged.length
       }
       else {
