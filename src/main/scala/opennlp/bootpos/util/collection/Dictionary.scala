@@ -2,8 +2,10 @@ package opennlp.bootpos.util.collection
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.HashSet
+import org.slf4j.LoggerFactory
 
 class Dictionary(iter: Iterator[Array[String]], wordsConsidered: Set[String] = null, sampleText:ArrayBuffer[String] = null){
+  val log = LoggerFactory.getLogger(this.getClass)
 /*    Filter away unnecessecary words for efficiency,
     and make a list of dictionary entries.*/
   var lstData = ListBuffer() ++ iter.filter(x =>
@@ -19,24 +21,29 @@ class Dictionary(iter: Iterator[Array[String]], wordsConsidered: Set[String] = n
 /*  Confidence in correctness: High
   Reason: proved correct.*/
   def removeDuplicateEntries = {
-    println("Num entries (prior): "+ lstData.length)
+    log info("Num entries (prior): "+ lstData.length)
     val delim = "~"
     val entrySet = lstData.map(x => x.mkString(delim)).toSet
     lstData = ListBuffer() ++ entrySet.map(x => x.split(delim)).toList
-    println("Num entries (after): "+ lstData.length)
+    log info("Num entries (after): "+ lstData.length)
   }
 
 /*  Confidence in correctness: High
   Reason: proved correct.*/
   def updateCompleteness(tokens: ArrayBuffer[String]) = {
     var numTokens = tokens.length
+    if(numTokens == 0) {
+      log error "no tokens!"
+      System.exit(1)
+    }
     var numTokensSeen = 0
     tokens.foreach(x => {
       if(wordSet contains x) numTokensSeen += 1
     })
     completeness = numTokensSeen/ numTokens.toDouble
+    log debug numTokensSeen + " in " + numTokens
     completeness = completeness * 0.9999
-    println("Dict completeness "+ completeness)
+    log info("Dict completeness "+ completeness)
   }
 
 /*  Confidence in correctness: High

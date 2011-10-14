@@ -79,10 +79,11 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     var iter = getWordTagIteratorFromFile(mode)
     val tokensUntagged = new ArrayBuffer[String]()
 
-    if(bProcessUntaggedData){
+    if(bProcessUntaggedData | bTrainingDataAsDictionary){
       log info("Processing untagged data.")
       if(BootPos.bRawDataFromTrainingFile) {
         tokensUntagged ++= getWordTagIteratorFromFile("train").map(_(0))
+        log debug "Got " + tokensUntagged.length
       }
       else {
         var untaggedDataFile = getFileName("raw")

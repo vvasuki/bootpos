@@ -9,6 +9,7 @@ import scala.collection.mutable.BufferLike
 import scala.collection.mutable.IndexedSeqOptimized
 import scala.collection.mutable.Builder
 import scala.collection.mutable.ResizableArray
+import org.slf4j.LoggerFactory
 
 object matrixMath {
 //  Confidence in correctness: High.

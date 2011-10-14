@@ -5,7 +5,7 @@
             <pattern>%d{HH:mm:ss} [%thread] %-5level %logger{36} %line  %msg%n</pattern>
      -->
         <encoder>
-            <pattern>%d{HH:mm:ss} %logger{36} %line --- %msg%n</pattern>
+            <pattern>%d{HH:mm:ss} %logger{10} %line --- %msg%n</pattern>
         </encoder>
     </appender>
 
