@@ -58,6 +58,10 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
     case "LblPropEMHMM" => {
       tagger = new LblPropEMHMM(sentenceSepTag, sentenceSepWord, bUseTrainingStats = !(BootPos.bWiktionary || bTrainingDataAsDictionary))
       bProcessUntaggedData = true
+      if(!BootPos.bUseAsDictionary) {
+        log error "Operation undefined"
+        System.exit(1)
+      }
     }
     case "LabelPropagation" => {
       tagger = new LabelPropagationTagger(sentenceSepTag, sentenceSepWord)
