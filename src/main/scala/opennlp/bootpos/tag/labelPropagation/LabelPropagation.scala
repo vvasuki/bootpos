@@ -20,7 +20,7 @@ trait LabelPropagation extends Tagger{
 //    Exclude sentenceSepTag: we don't want it propagating.
 //   Confidence: High
 //   Reason: Well tested.
-  def getLabels = {
+  def getTagLabels = {
     val labels = tagsToPropagate.map(x =>
       LabelCreator(nodeNamer.t(x), getTagStr(x))
     )
@@ -75,7 +75,7 @@ trait LabelPropagation extends Tagger{
       map(x => Array(getWordId(x(0)), getTagId(x(1))))
     updateWordTagMap(lstData.iterator)
     log info("numWordsTraining "+ numWordsTraining)
-    // wordTagMap.matrix.foreach(x => log info(x.indexWhere(_>0)))
+    // wordTagMap.matrix.foreach(x => log.info(x.indexWhere(y => y>0)))
   }
 
 //   Confidence: High
@@ -193,12 +193,13 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     val numPreTestTokens = numTokens
     addTokenEdges(tokens.toList)
     val wordTagEdges = makeWordTagEdges
-    // log info(wordTagMap)
-    // log info("wtEdges" + wordTagEdges.mkString("\n"))
+    // log debug(wordTagMap)
+    // log debug("wtEdges" + wordTagEdges.mkString("\n"))
     val edges = tokenEdges ++ wordTagEdges
-    // log info("tokenEdges " + tokenEdges.mkString("\n"))
-    val labels = getLabels ++ tokenLabels
-    log info("labels " + labels.mkString("\n"))
+    // log debug("tokenEdges " + tokenEdges.mkString("\n"))
+    val labels = getTagLabels ++ tokenLabels
+    // log debug("getTagLabels " + getTagLabels.mkString("\n"))
+    // log debug("tokenLabels " + tokenLabels.mkString("\n"))
     val graph = GraphBuilder(edges.toList, labels.toList)
     // Run junto.
     JuntoRunner(graph, 1.0, .01, .01, BootPos.numIterations, false)

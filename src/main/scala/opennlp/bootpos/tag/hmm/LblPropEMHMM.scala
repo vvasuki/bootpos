@@ -14,6 +14,11 @@ class LblPropEMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTr
 EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats = false) {
   val lblPropTagger = new LabelPropagationTagger(sentenceSepTagStr, sentenceSepWordStr)
 
+  override def train(iter: Iterator[Array[String]]) = {
+    log error "Undefined operation!"
+    System.exit(1)
+  }
+
 //  TODO: Not updating word-tag map here for limiting possible tags during EM iterations.
 //  Confidence in correctness: Medium.
 //  Reason: Seems to be fine.

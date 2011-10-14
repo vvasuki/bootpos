@@ -85,7 +85,7 @@ class LabelPropagationDict(sentenceSepTagStr :String, sentenceSepWordStr: String
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
   def getGraph(expectedLabels: List[Label] = List()) : Graph = {
-    val labels = getLabels
+    val labels = getTagLabels
     val edges = makeEdges
 /*    println("edges:")
     edges.foreach(println)

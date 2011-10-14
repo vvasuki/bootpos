@@ -111,9 +111,11 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
       val dict = new Dictionary(iter)
       dict.removeDuplicateEntries
       dict.updateCompleteness(tokensUntagged)
+      log info "training with dictionary"
       tagger.trainWithDictionary(dict)
     }
     if(bProcessUntaggedData){
+      log info "processing Untagged Data"
       tagger.processUntaggedData(tokensUntagged)
     }
 
