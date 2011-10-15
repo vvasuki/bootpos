@@ -1,6 +1,7 @@
 #!/bin/bash
 
-JARS=`echo $BOOTPOS_DIR/lib/*.jar $BOOTPOS_DIR/target/*.jar $BOOTPOS_DIR/lib_managed/compile/*.jar | tr ' ' ':'`
+#JARS=`echo $BOOTPOS_DIR/lib/*.jar $BOOTPOS_DIR/target/*.jar $BOOTPOS_DIR/lib_managed/compile/*.jar | tr ' ' ':'`
+JARS=`find $BOOTPOS_DIR/lib* -name '*.jar' | xargs echo | sed -e 's/\s/:/g'`
 SCALA_LIB="$BOOTPOS_DIR/project/boot/scala-2.9.0/lib/scala-library.jar"
 
 CP=$BOOTPOS_DIR/target/classes:$BOOTPOS_DIR/src/main/resources:$JARS:$SCALA_LIB:$CLASSPATH
