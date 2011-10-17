@@ -91,7 +91,7 @@ Correctly updates the following:
 //  Reason: Well tested.
   def train(iter: Iterator[Array[String]]) = {
     val lstData = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
-    log info "Training"
+    log info "Training using tagged sequence."
 //     print(lstData.take(10).map(_.mkString(":")).mkString(", "))
 
     wordTagStatsFinal.updateCounts(lstData, this)
@@ -151,8 +151,9 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
+    log info "testing"
     log info(wordTagStatsFinal.toString)
-    log.info(this.toString)
+    log info(this.toString)
     val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
     val numTokens = testData.length
     val numTags = wordTagStatsFinal.numTags;

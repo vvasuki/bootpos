@@ -24,6 +24,7 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
   Reason: See comments for updateCounts. Otherwise proved correct.
 */
   override def processUntaggedData(textIn: ArrayBuffer[String]) = {
+    log info "Processing untagged token sequence."
     val text = textIn.map(x => getWordId(x))
     processTokenSeq(text)
   }
