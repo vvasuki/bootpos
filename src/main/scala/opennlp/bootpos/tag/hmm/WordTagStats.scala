@@ -196,9 +196,10 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 
 /*
   ASSUMPTION: dictionary.completeness < 1.
-  Choose Pr(w \notin W) = dictionary.completeness.
+  Choose Pr(w \in W) = dictionary.completeness.
   Set Pr(w \notin W_t) = Pr(w \notin W)
   Pr(w \in W|t) = Pr(w | w \in W_t) Pr(w \in W_t|t).
+  Pr(w | w \in W_t) is just the uniform distribution over all words associated with a given tag.
   Smoothen this to allow small probability for
   unobserved word tag associations.
   Confidence: High
