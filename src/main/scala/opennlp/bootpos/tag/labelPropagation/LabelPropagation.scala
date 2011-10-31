@@ -27,17 +27,23 @@ trait LabelPropagation extends Tagger{
     labels
   }
 
+  def getLabelDistribution(v: Vertex, possibleTags: IndexedSeq[String] = tagsToPropagate.map(getTagStr(_))) = {
+    val scores = possibleTags map (v.GetEstimatedLabelScore(_))
+    val sumScores = scores.sum
+    scores.map(_/sumScores)
+  }
+
 //     Input: v: Vertex which is a word node, but is not sentenceSepWordStr.
   def getBestLabel(v: Vertex, possibleTags: IndexedSeq[String] = tagsToPropagate.map(getTagStr(_))):String = {
     // log info("possibleTags " + possibleTags)
     val mostFrequentTag = getTagStr(bestTagsOverall.head)
-    val scores = possibleTags map (v.GetEstimatedLabelScore(_))
-    val maxScore = scores.max
-    val minScore = scores.min
+    val distribution = getLabelDistribution(v, possibleTags)
+    val maxScore = distribution.max
+    val minScore = distribution.min
 
     // log info("Scores " + minScore + " " + maxScore)
     if(maxScore > minScore)
-      possibleTags(scores.indices.find(scores(_) == maxScore).get)
+      possibleTags(distribution.indices.find(distribution(_) == maxScore).get)
     else{
       log info("getBestLabel: maxScore == minScore!")
       mostFrequentTag
@@ -109,7 +115,7 @@ trait LabelPropagation extends Tagger{
   //  Prefixes distinguishing string names for various types of nodes.
   //  Assumption: They are all of equal length.
     val P_WORD_TYPE = "W_"
-    val P_PREVWORD_TYPE = "P_"
+    val P_CONTEXT = "C_"
     val P_TAG = "T_"
     val P_TOKEN = "V_"
 
@@ -117,7 +123,7 @@ trait LabelPropagation extends Tagger{
   //  Confidence in correctness: High.
   //  Reason: proved correct.
     def w(id: Int) = P_WORD_TYPE + getWordStr(id)
-    def p(id: Int) = P_PREVWORD_TYPE + getWordStr(id)
+    def c(context: String) = P_CONTEXT + context
     def t(id: Int) = P_TAG + getTagStr(id)
     def tok(id:Int) = P_TOKEN + id.toString
 
@@ -144,8 +150,10 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //  Reason: proved correct.
   def addTokenEdges(tokenList: List[Int], tagList: List[Int] = null) = {
     log info("adding token edges: ")
+    var prevPrevToken = sentenceSepWord
     var prevToken = sentenceSepWord
     val tokenListLength = tokenList.length -1
+    
     for(seqNum <- 0 to tokenListLength-1) {
       val token = tokenList(seqNum)
       if(seqNum % 100 == 0)
@@ -154,7 +162,9 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
       val tokenId = seqNum + numTokens
 
       //Create token-prevToken edge, update prevToken
-      tokenEdges += new Edge(nodeNamer.tok(tokenId), nodeNamer.p(prevToken), 1)
+      val context = prevPrevToken + "_" + prevToken
+      tokenEdges += new Edge(nodeNamer.tok(tokenId), nodeNamer.c(context), 1)
+      prevPrevToken = prevToken
       prevToken = token
 
       // Create token-tag or token-wordType edge.
@@ -180,17 +190,11 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     addTokenEdges(txtIn.map(_(0)), txtIn.map(_(1)))
   }
 
-  
-// See the CHOICE-note below.
-//  Confidence in correctness: High.
-//  Reason: Proved correct.
-  def getPredictions(tokensStr: ArrayBuffer[String]) = {
-    val tokens = tokensStr.map(x => getWordId(x))
-    log info("getPred ")
 
-    // Make graph
-    // Proved correct.
-    val numPreTestTokens = numTokens
+// Make graph
+// Confidence in correctness: High.
+// Reason: Proved correct.
+  def propagateLabels(tokens: ArrayBuffer[Int]) = {
     addTokenEdges(tokens.toList)
     val wordTagEdges = makeWordTagEdges
     // log debug(wordTagMap)
@@ -203,6 +207,42 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     val graph = GraphBuilder(edges.toList, labels.toList)
     // Run junto.
     JuntoRunner(graph, 1.0, .01, .01, BootPos.numIterations, false)
+    graph
+  }
+
+
+//  Confidence in correctness: Low.
+//  Reason: Implementation incomplete.
+  def getLabelDistribution(tokens: ArrayBuffer[Int]) = {
+    log info("getPred ")
+    val numPreTestTokens = numTokens
+    val graph = propagateLabels(tokens)
+
+    // Deduce tags.
+    // Proved correct.
+    val tagsFinal = tokens.indices.map(x => {
+      val tokenId = numPreTestTokens + x
+      val token = tokens(x)
+      if(token == sentenceSepWord)
+        sentenceSepTagStr
+      else {
+      // CHOICE: We are not checking the tag dictionary while
+      // picking the label with the max score!
+      // Perhaps this helps us overcome limitations in the dictionary.
+        val v = graph._vertices.get(nodeNamer.tok(tokenId))
+        getBestLabel(v)
+      }
+    })
+    tagsFinal
+  }
+  
+// See the CHOICE-note below.
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def getPredictions(tokens: ArrayBuffer[Int]) = {
+    log info("getPred ")
+    val numPreTestTokens = numTokens
+    val graph = propagateLabels(tokens)
 
     // Deduce tags.
     // Proved correct.
@@ -230,8 +270,8 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     // So the below.
     wordTagMap.updateSize(numWordsTotal, numTags)
 
-    val testTokensStr = testDataIn.map(x => x(0))
-    val tagsFinal = getPredictions(testTokensStr).map(x => getTagId(x))
+    val testTokens = testData.map(x => x(0))
+    val tagsFinal = getPredictions(testTokens).map(x => getTagId(x))
     getResults(testData, tagsFinal.toArray)
   }
 

@@ -19,6 +19,7 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats = false) {
 //  Reason: Seems to be fine.
   override def trainWithDictionary(dictionary: Dictionary) = {
     lblPropTagger.trainWithDictionary(dictionary)
+    System.exit(1)
   }
 
 //  Confidence in correctness: Low.
@@ -26,12 +27,13 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats = false) {
   override def processUntaggedData(textIn: ArrayBuffer[String]) = {
     val textInUp = textIn.map(_.map(_.toUpper))
     val tokenSeq1 = textInUp.map(x => lblPropTagger.getWordId(x))
-    val tags = lblPropTagger.getPredictions(textInUp)
+//     val tags = lblPropTagger.getPredictions(textInUp)
+    System.exit(1)
     
 /*    Ensure that the following, which leads to errors, does not happen above:
     wtMap(x) == sentenceSepTagStr for x != sentenceSepWordStr.*/
     
-    train(textInUp.indices.map(x => Array(textInUp(x), tags(x))).iterator)
+//     train(textInUp.indices.map(x => Array(textInUp(x), tags(x))).iterator)
 
     super.processUntaggedData(textInUp)
   }

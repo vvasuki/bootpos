@@ -22,8 +22,11 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
   var logPrNovelWord = new ExpandingArray[Double](TAGNUM_IN, defaultValue = math.log(0))
 
   val wordTagStatsFinal = new WordTagStats(TAGNUM_IN, WORDNUM_IN)
+  
   val sentenceSepTag = getTagId(sentenceSepTagStr)
   val sentenceSepWord = getWordId(sentenceSepWordStr)
+  //added sentenceSepWord, hence the following.
+  numWordsTraining = 1
 
 
 

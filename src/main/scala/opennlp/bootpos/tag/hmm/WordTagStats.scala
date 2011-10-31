@@ -82,7 +82,6 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   /*
   Claims.
   Correctly updates the following:
-  numWordsTraining
   tagCount, wordCount, wordTagCount.
   */
   //  Confidence in correctness: High.
@@ -99,7 +98,6 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   /*
   Claims.
   Correctly updates the following:
-  numWordsTraining
   tagCount, wordCount, wordTagCount.
   tagBeforeTagCount
   */
@@ -200,8 +198,9 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   Set Pr(w \notin W_t) = Pr(w \notin W)
   Pr(w \in W|t) = Pr(w | w \in W_t) Pr(w \in W_t|t).
   Pr(w | w \in W_t) is just the uniform distribution over all words associated with a given tag.
+  TODO:
   Smoothen this to allow small probability for
-  unobserved word tag associations.
+  unobserved word tag associations. This may be necessary in case we use a very incomplete dictionary.
   Confidence: High
   Reason: Well tested.
 */
@@ -213,7 +212,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     val numTaggedWords = wordTagCount.numRows
     for(word <- (0 to numTaggedWords-1); tag<- (0 to numTags-1).filterNot(_ == sentenceSepTag)){
       var wtCnt= wordTagCount(word, tag)
-      var x = (1 - math.exp(hmm.logPrNovelWord(tag)))*wtCnt/tagCount(tag) + 1e-100
+      var x = (1 - math.exp(hmm.logPrNovelWord(tag)))*(wtCnt)/(tagCount(tag))
       hmm.logPrWGivenT(word, tag) = math.log(x)
     }
     hmm.logPrWGivenT(hmm.sentenceSepWord, sentenceSepTag) = math.log(1)
@@ -255,6 +254,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 }
 
 class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAGNUM_IN, WORDNUM_IN){
+
 /*
   Example against which much of this code was verified:
     http://comp.ling.utexas.edu/_media/courses/2008/fall/natural_language_processing/eisner-icecream-forwardbackward.xls
@@ -273,27 +273,25 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
     val forwardPr = hmm.getForwardPr(text)
     val backwardPr = hmm.getBackwardPr(text)
     val numTokensUntagged = forwardPr.numRows
-    val wordTagStatsFinal = hmm.wordTagStatsFinal
 
     val logPrTokens = forwardPr(numTokensUntagged-1, sentenceSepTag)
     log info("logPrTokens " + logPrTokens)
 
-    prepareTableSizes(hmm.numWordsTotal, wordTagStatsFinal.numTags)
 /*
     Claim: wordTagCount, tagCount correctly updated below.
     Confidence: Moderate.
     Reason: Not sure whether underflow errors occur.
       Otherwise proved correct.
 */
+    prepareTableSizes(hmm.numWordsTotal, numTags)
     for{i <- 1 to numTokens-1
       token = text(i)
-      tag <- wordTagStatsFinal.possibleTags(token, hmm)
+      tag <- possibleTags(token, hmm)
     }{
-      val prTag = forwardPr(i, tag) + backwardPr(i, tag) - logPrTokens
-      wordTagCount(token, tag) = wordTagCount(token, tag) + math.exp(prTag)
-      tagCount(tag) = tagCount(tag) + math.exp(prTag)
+      val prTag = math.exp(forwardPr(i, tag) + backwardPr(i, tag) - logPrTokens)
+      wordTagCount(token, tag) = wordTagCount(token, tag) + prTag
+      tagCount(tag) = tagCount(tag) + prTag
     }
-
 /*
     Claim: tagBeforeTagCount correctly updated below.
     Confidence: Moderate.
@@ -301,8 +299,8 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
       Otherwise proved correct.*/
     for{i <- 1 to numTokens-1
       token = text(i)
-      tag <- wordTagStatsFinal.possibleTags(token, hmm)
-      prevTag <- wordTagStatsFinal.possibleTags(text(i-1), hmm)
+      tag <- possibleTags(token, hmm)
+      prevTag <- possibleTags(text(i-1), hmm)
     }{
       val prTagPair = forwardPr(i-1, prevTag) + backwardPr(i, tag) - logPrTokens + hmm.getArcPr(tag, prevTag, token)
       tagBeforeTagCount(prevTag, tag) = tagBeforeTagCount(prevTag, tag) + math.exp(prTagPair)
@@ -313,6 +311,12 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
     setLogPrTGivenT(hmm)
     setLogPrWGivenT(hmm)
     log info(hmm.toString)
+  }
+
+  def updateCounts(text: ArrayBuffer[Int], hmm: EMHMM, prTag: MatrixBufferDense[Double]) = {
+    val numTokens = text.length
+    log error "Implementation incomplete"
+    System.exit(1)
   }
 
 }

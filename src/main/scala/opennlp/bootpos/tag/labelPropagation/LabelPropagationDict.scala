@@ -59,7 +59,8 @@ class LabelPropagationDict(sentenceSepTagStr :String, sentenceSepWordStr: String
 //      Add (w, p) edges
       var numOcc = wordAfterWordMap(word).values.sum
       wordAfterWordMap(word).foreach(x => {
-        edges += new Edge(nodeNamer.w(word), nodeNamer.p(x._1), x._2/numOcc.toDouble)
+        val context = getWordStr(x._1)
+        edges += new Edge(nodeNamer.w(word), nodeNamer.c(context), x._2/numOcc.toDouble)
       })
 
     }
