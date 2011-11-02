@@ -227,7 +227,7 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     // Deduce tags.
     // Proved correct.
     val allTags = (0 to numTags - 1) map getTagStr
-    val tagDistrForSentenceSeparators = IndexedSeq(sentenceSepTag, 1.0)
+    val tagDistrForSentenceSeparators = IndexedSeq((sentenceSepTag, 1.0))
     
     val tagDistribution = tokens.indices.map(x => {
       val tokenId = numPreTestTokens + x
