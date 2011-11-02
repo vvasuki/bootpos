@@ -49,7 +49,12 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
 /*        Doing the above and correctly computing Pr(W|T=t)
         using the tagged-data learning code can be tricky.
         Also it may not be desirable to totally forget things learned
-        with either the trainingStats (which possibly is from a dictionary.)*/
+        with either the trainingStats (which possibly is from a dictionary.)
+
+        Hence, we do the below.
+        The fraction 1/wordTagStats.numWords is arbitrarily chosen.
+        Smaller the fraction, lesser the weight given to training counts.
+*/
         wordTagStats.scaleDown(1/wordTagStats.numWords.toDouble)
         log info("Not using training stats.")
         log info(wordTagStats.toString)

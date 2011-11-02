@@ -18,7 +18,8 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 
 /*  Purpose: To estimate Pr(word)
   Property note: It is possible that wordCount.sum > tagCount.sum 
-  due to the presence of untagged data.*/
+  due to the presence of untagged data.
+  */
   var wordCount = new ExpandingArray[Double](WORDNUM_IN)
 
 //   Purpose: To estimate Pr(word|tag)
@@ -43,12 +44,15 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     wordCount.padTill(numWords)
   }
 
+  // Scale down nearly everything updated with updateCount method:
+  //  wordTagCount, singletonWordsPerTag, 
+  //  tagBeforeTagCount, tagCount.
+  // Do not scale down wordCount - that is used to compute word probability.
   def scaleDown(p: Double) = {
     wordTagCount = wordTagCount.map(_ * p)
     singletonWordsPerTag = singletonWordsPerTag.map(_ * p)
     tagBeforeTagCount = tagBeforeTagCount.map(_ * p)
     tagCount = tagCount.map(_ * p)
-    wordCount = wordCount.map(_ * p)
     // log info(this)
   }
 
@@ -65,18 +69,20 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   }
 /*
   Updates wordTagCount, tagCount, singleton-counts to ensure consistency.
+  wordCount updated only if bUpdateWordCount == true.
   Confidence: High
   Reason: Well tested.
 */
-  def incrementWordTagCounts(word: Int, tag: Int) = {
+  def incrementWordTagCounts(word: Int, tag: Int, bUpdateWordCount: Boolean = true) = {
     wordTagCount.increment(word, tag)
     wordTagCount(word, tag) match {
       case 1 => {singletonWordsPerTag.addAt(tag, 1)}
       case 2 => {singletonWordsPerTag.addAt(tag, -1)}
       case _ => {}
     }
-    wordCount.addAt(word, 1)
     tagCount.addAt(tag, 1)
+    if(bUpdateWordCount)
+      wordCount.addAt(word, 1)
   }
 
   /*
@@ -86,11 +92,11 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   */
   //  Confidence in correctness: High.
   //  Reason: Well tested.
-  def updateWordTagCount(lstData: List[Array[Int]]) = {
+  def updateWordTagCount(lstData: List[Array[Int]], bUpdateWordCount: Boolean = true) = {
     for(fields <- lstData;
       tag = fields(1);
       word = fields(0)){
-      incrementWordTagCounts(word, tag)
+      incrementWordTagCounts(word, tag, bUpdateWordCount)
 //      log info(prevTag+ " t " + tag + " w "+ word)
     }
   }
@@ -194,17 +200,26 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 
 /*
   ASSUMPTION: dictionary.completeness < 1.
-  Choose Pr(w \in W) = dictionary.completeness.
-  Set Pr(w \notin W_t) = Pr(w \notin W)
-  Pr(w \in W|t) = Pr(w | w \in W_t) Pr(w \in W_t|t).
-  Pr(w | w \in W_t) is just the uniform distribution over all words associated with a given tag.
-  TODO:
+Let W be the set of words in the dictionary.
+Let W_t be the set of words with tag t according to the tag-dictionary.
+
+Probability of seeing a novel word, given a tag is set to be a constant:
+Pr(w \notin W_t | t) = Pr(w \notin W) = 1 - dictionary.completeness.
+
+Probability of seeing an particular in-dictionary word w given that tag is t is modeled by the uniform distribution.
+Pr(w | w \in W_t, t) = 1/|W_t|
+
+Thus, the probability of seeing a certain in-dictionary word w given tag t is:
+Pr(w AND w \in W_t | t) = Pr(w | w \in W_t, t) Pr(w \in W_t | t) = (1/|W_t|) Pr(w \in W_t | t)
+
+TODO:
   Smoothen this to allow small probability for
   unobserved word tag associations. This may be necessary in case we use a very incomplete dictionary.
   Confidence: High
   Reason: Well tested.
 */
   def setLogPrWGivenT(hmm: HMM, dict: Dictionary) = {
+    log info "Setting pr(w|t) fromm dictionary."
     hmm.logPrNovelWord.padTill(numTags, math.log(1 - dict.completeness))
     val sentenceSepTag = hmm.sentenceSepTag
     hmm.logPrNovelWord(sentenceSepTag) = math.log(0)
@@ -223,7 +238,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 //  Reason: Well tested.
   def possibleTags(token: Int, hmm: HMM) = {
     (0 to numTags-1).filter(x =>
-      if(token< hmm.numWordsTraining)
+      if(token< wordTagCount.numRows)
         wordTagCount(token, x)>0
       else x!= hmm.sentenceSepTag)
   }
@@ -261,6 +276,8 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
   Purpose:
       0. Execute forward/ backward algorithm.
       1. Update wordTagCount, tagBeforeTagCount, tagCount, tokenCount
+      1a. Note that wordCount is not updated below - it is updated beforehand,
+        and not once per EM iteration.
       2. Update: logPrTGivenT logPrWGivenT logPrNovelWord
   Confidence: High.
   Reason: Proved correct. Also verified with ic test data.

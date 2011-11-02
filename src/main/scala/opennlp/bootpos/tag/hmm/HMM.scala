@@ -107,7 +107,6 @@ Correctly updates the following:
 Claims.
 Correctly updates the following:
   wordIntMap, tagIntMap.
-  numWordsTraining
   tagCount, wordTagCount, singletonWordsPerTag.
   logPrTGivenT
   logPrNovelWord
@@ -139,7 +138,7 @@ Ensure EM iterations start with fresh counts when starting point has been deduce
     map(x => Array(getWordId(x(0)), getTagId(x(1))))
     numWordsTraining = numWordsTotal
     
-    wordTagStatsFinal.updateWordTagCount(lstData.toList)
+    wordTagStatsFinal.updateWordTagCount(lstData.toList, bUpdateWordCount = false)
     val bUniformModelForTags = true
     if(bUniformModelForTags)
       logPrTGivenT = new MatrixBufferDense[Double](numTags, numTags, math.log(1/numTags.toDouble), true)

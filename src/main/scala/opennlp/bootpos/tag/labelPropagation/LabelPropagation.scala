@@ -6,6 +6,7 @@ import upenn.junto.config._
 import upenn.junto.graph._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.ListMap
 import scala.collection.immutable.IndexedSeq
 import opennlp.bootpos.util.collection._
 import opennlp.bootpos.app._
@@ -27,14 +28,18 @@ trait LabelPropagation extends Tagger{
     labels
   }
 
-  def getLabelDistribution(v: Vertex, possibleTags: IndexedSeq[String] = tagsToPropagate.map(getTagStr(_))) = {
+//     Input: v: Vertex which is a word node, but is not sentenceSepWordStr.
+//   Confidence: High
+//   Reason: Proved correct.
+  def getLabelDistribution(v: Vertex, possibleTags: IndexedSeq[String] = tagsToPropagate map getTagStr) = {
+    // Note that GetEstimatedLabelScore(l) returns 0 for any l not propagated.
     val scores = possibleTags map (v.GetEstimatedLabelScore(_))
     val sumScores = scores.sum
-    scores.map(_/sumScores)
+    scores map(x => x/sumScores.toDouble)
   }
 
 //     Input: v: Vertex which is a word node, but is not sentenceSepWordStr.
-  def getBestLabel(v: Vertex, possibleTags: IndexedSeq[String] = tagsToPropagate.map(getTagStr(_))):String = {
+  def getBestLabel(v: Vertex, possibleTags: IndexedSeq[String] = tagsToPropagate map getTagStr):String = {
     // log info("possibleTags " + possibleTags)
     val mostFrequentTag = getTagStr(bestTagsOverall.head)
     val distribution = getLabelDistribution(v, possibleTags)
@@ -45,7 +50,8 @@ trait LabelPropagation extends Tagger{
     if(maxScore > minScore)
       possibleTags(distribution.indices.find(distribution(_) == maxScore).get)
     else{
-      log info("getBestLabel: maxScore == minScore!")
+      log error("getBestLabel: maxScore == minScore!")
+      System.exit(1)
       mostFrequentTag
     }
   }
@@ -211,29 +217,30 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
   }
 
 
-//  Confidence in correctness: Low.
-//  Reason: Implementation incomplete.
-  def getLabelDistribution(tokens: ArrayBuffer[Int]) = {
+//  Confidence in correctness: Hg.
+//  Reason: .
+  def getLabelDistributions(tokens: ArrayBuffer[Int]) = {
     log info("getPred ")
     val numPreTestTokens = numTokens
     val graph = propagateLabels(tokens)
 
     // Deduce tags.
     // Proved correct.
-    val tagsFinal = tokens.indices.map(x => {
+    val allTags = (0 to numTags - 1) map getTagStr
+    val tagDistrForSentenceSeparators = IndexedSeq(sentenceSepTag, 1.0)
+    
+    val tagDistribution = tokens.indices.map(x => {
       val tokenId = numPreTestTokens + x
       val token = tokens(x)
-      if(token == sentenceSepWord)
-        sentenceSepTagStr
+      if(token == sentenceSepWord) {
+        tagDistrForSentenceSeparators
+      }
       else {
-      // CHOICE: We are not checking the tag dictionary while
-      // picking the label with the max score!
-      // Perhaps this helps us overcome limitations in the dictionary.
         val v = graph._vertices.get(nodeNamer.tok(tokenId))
-        getBestLabel(v)
+        (allTags.indices zip getLabelDistribution(v, allTags)).filterNot(x => x._2 == 0)
       }
     })
-    tagsFinal
+    tagDistribution
   }
   
 // See the CHOICE-note below.
