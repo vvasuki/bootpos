@@ -107,7 +107,7 @@ Correctly updates the following:
 Claims.
 Correctly updates the following:
   wordIntMap, tagIntMap.
-  tagCount, wordTagCount, singletonWordsPerTag.
+  tagCount, wordTagCount.
   logPrTGivenT
   logPrNovelWord
   logPrWGivenT
@@ -118,18 +118,23 @@ Problems to consider when creating an initial HMM model from a dictionary.
   1b] Even when a word is included, some potential parts of speech may not be mentioned.
 2] We have no word-sequence and tag-sequence information.
 
-Potential model:
-Let W be the set of words in the dictionary.
-Let W_t be the set of words with potential tag t.
-Pr(t_i|t_{i-1}) = Pr(t_i) - or perhaps just 1/numTags.
+Model parameters:
+  Pr(t_i|t_{i-1}) = Pr(t_i) - or perhaps just 1/numTags.
   The latter choice may be preferable because it may
   facilitate better learning of Pr(t_i|t_{i-1}) during EM.
-Model Pr(w \notin W) arbitrarily - or learn it using the dictionary and raw data.
-Set Pr(w \notin W_t|t) = Pr(w \notin W)
-Pr(w \in W|t) = Pr(w | w \in W_t) Pr(w \in W_t|t).
 
-Tag count should be updated during HMM.
-Ensure EM iterations start with fresh counts when starting point has been deduced from a wiktionary.
+  Model Pr(w \notin W) arbitrarily - or learn it using the dictionary and raw data.
+  For details about Pr(w|t) initialization, see comments for setLogPrWGivenT.
+
+CHECK regarding singletonWordsPerTag:
+  This proceudure updates singletonWordsPerTag.
+  That data is not used in setting Pr(w|t),
+    but is used in later EM iterations - albeit in an attenuated sense.
+  This may be justified by saying that tags with greater words associated with them in a dictionary are less likely to be 'closed' to novel words.
+  
+NOTES:
+  Tag count should be updated during HMM.
+  Ensure EM iterations start with fresh counts when starting point has been deduced from a wiktionary.
 */
 //  Confidence in correctness: Medium.
 //  Reason: Seems to be fine.

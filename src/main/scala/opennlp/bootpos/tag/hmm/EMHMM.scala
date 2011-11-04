@@ -46,10 +46,13 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
       wordTagStats = reflectionUtil.deepCopy(wordTagStatsFinal)
       if(!bUseTrainingStats) {
         // wordTagStats = new WordTagStatsProb(TAGNUM_IN, WORDNUM_IN)
-/*        Doing the above and correctly computing Pr(W|T=t)
-        using the tagged-data learning code can be tricky.
+/*      Doing the above and correctly computing Pr(W|T=t)
+          using the tagged-data learning code can be tricky.
         Also it may not be desirable to totally forget things learned
-        with either the trainingStats (which possibly is from a dictionary.)
+          with either the trainingStats (which possibly is from a dictionary.)
+        Also, in case of singletonCounts (used to determine exclusiveness of a tag
+          and thence Pr(NW|T)) updated from a dictionary,
+          it is important to scale it down - otherwise Pr(NW|T) can be too high.
 
         Hence, we do the below.
         The fraction 1/wordTagStats.numWords is arbitrarily chosen.

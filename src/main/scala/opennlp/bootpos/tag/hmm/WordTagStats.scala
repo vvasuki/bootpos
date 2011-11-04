@@ -83,6 +83,8 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     tagCount.addAt(tag, 1)
     if(bUpdateWordCount)
       wordCount.addAt(word, 1)
+    else
+      wordCount.padTill(word)
   }
 
   /*
@@ -104,8 +106,9 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   /*
   Claims.
   Correctly updates the following:
-  tagCount, wordCount, wordTagCount.
-  tagBeforeTagCount
+  tagCount, wordCount, wordTagCount, singletonWordsPerTag.
+  tagBeforeTagCount.
+  pr(W|T) and Pr(T|T) are then updated.
   */
   //  Confidence in correctness: High.
   //  Reason: Well tested.
@@ -134,8 +137,10 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     setLogPrWGivenT(hmm)
   }
 
-  //  Confidence in correctness: High.
-  //  Reason: Well tested.
+//  Prerequisites:
+//     Set tagBeforeTagCount, tagCount.
+//  Confidence in correctness: High.
+//  Reason: Well tested.
   def setLogPrTGivenT(hmm: HMM) = {
     val numTokens = tagCount.sum
     for(tag1 <- (0 to numTags-1); tag2 <- (0 to numTags-1)) {
@@ -159,6 +164,8 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 
 // ASSUMPTION: A 'seen word' cannot have an unobserved connection to a tag.
 // Ensure that there is no smoothing for sentenceSepTag.
+//   Prerequisites:
+//     Set wordCount, wordTagCount, singletonWordsPerTag.
 //  Confidence in correctness: High.
 //  Reason: Proved Correct.
   def setLogPrWGivenT(hmm: HMM) = {
@@ -275,10 +282,15 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
     http://comp.ling.utexas.edu/_media/courses/2008/fall/natural_language_processing/eisner-icecream-forwardbackward.xls
   Purpose:
       0. Execute forward/ backward algorithm.
-      1. Update wordTagCount, tagBeforeTagCount, tagCount, tokenCount
-      1a. Note that wordCount is not updated below - it is updated beforehand,
-        and not once per EM iteration.
+      1. Update wordTagCount, tagBeforeTagCount, tagCount
       2. Update: logPrTGivenT logPrWGivenT logPrNovelWord
+  Assumptions:
+    1. singletonWordsPerTag is to be updated before calling this, if necessary.
+      As explained in http://comp.ling.utexas.edu/_media/courses/2010/spring/natural_language_processing/nlp10_hw4.pdf ,
+        it should not be updating during this procedure.
+      It is considered in computing Pr(W|T).
+    2. Note that wordCount is not updated below - it is updated beforehand,
+        and not once per EM iteration.
   Confidence: High.
   Reason: Proved correct. Also verified with ic test data.
     1. See comments below.
@@ -313,7 +325,8 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
     Claim: tagBeforeTagCount correctly updated below.
     Confidence: Moderate.
     Reason: Not sure whether underflow errors occur.
-      Otherwise proved correct.*/
+      Otherwise proved correct.
+*/
     for{i <- 1 to numTokens-1
       token = text(i)
       tag <- possibleTags(token, hmm)
@@ -330,7 +343,20 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
     log info(hmm.toString)
   }
 
-  def updateCounts(text: ArrayBuffer[Int], hmm: EMHMM, prTag: MatrixBufferDense[Double]) = {
+/*
+  Purpose:
+      1. Update various counts required for computing logPrTGivenT etc..
+        These include: wordTagCount, tagBeforeTagCount,
+        tagCount, tokenCount
+      1a. Note that wordCount is not updated below
+        as initial-parameter computation doesn't require it'-
+        it is updated later, before the EM iteration.
+      2. Update: logPrTGivenT logPrWGivenT logPrNovelWord
+  Confidence: High.
+  Reason: Proved correct. Also verified with ic test data.
+
+*/
+  def updateCountsPr(text: ArrayBuffer[Int], hmm: EMHMM, prTag: IndexedSeq[IndexedSeq[(Int, Double)]]) = {
     val numTokens = text.length
     log error "Implementation incomplete"
     System.exit(1)
