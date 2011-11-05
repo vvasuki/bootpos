@@ -24,6 +24,7 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats) {
         singletonWordsPerTag [and optionally other counts using dictionary] (required for computing Pr(W|T))
           then scales it down by numWords.
       For completeness, it does other things done by HMM.trainWithDictionary
+      See comments for that function too.
   Confidence in correctness: High.
   Reason: Proved correct.
   */

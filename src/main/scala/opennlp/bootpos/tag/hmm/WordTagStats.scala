@@ -43,14 +43,17 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     tagCount.padTill(numTags)
     wordCount.padTill(numWords)
   }
-
-  // Scale down nearly everything updated with updateCount method:
-  //  wordTagCount, singletonWordsPerTag, 
-  //  tagBeforeTagCount, tagCount.
-  // Do not scale down wordCount - that is used to compute word probability.
+  
+/*
+  Scale down nearly everything updated with updateCount method:
+    wordTagCount, singletonWordsPerTag,
+    tagBeforeTagCount, tagCount.
+  Do not scale down the following:
+    wordCount - that is used to compute word probability.
+    singletonWordsPerTag - that should be scaled as necessary separately.
+  */
   def scaleDown(p: Double) = {
     wordTagCount = wordTagCount.map(_ * p)
-    singletonWordsPerTag = singletonWordsPerTag.map(_ * p)
     tagBeforeTagCount = tagBeforeTagCount.map(_ * p)
     tagCount = tagCount.map(_ * p)
     // log info(this)

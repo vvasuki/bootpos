@@ -125,12 +125,19 @@ Model parameters:
 
   Model Pr(w \notin W) arbitrarily - or learn it using the dictionary and raw data.
   For details about Pr(w|t) initialization, see comments for setLogPrWGivenT.
+  ALTERNATIVE: Use information from singletonWordsPerTag.
 
-CHECK regarding singletonWordsPerTag:
-  This proceudure updates singletonWordsPerTag.
+NOTE regarding singletonWordsPerTag:
+  This proceudure updates singletonWordsPerTag,
+    and scales it down appropriately.
   That data is not used in setting Pr(w|t),
     but is used in later EM iterations - albeit in an attenuated sense.
   This may be justified by saying that tags with greater words associated with them in a dictionary are less likely to be 'closed' to novel words.
+
+  An ALTERNATIVE to the setting is to do the following:
+    Set it to 1-dictionary.completeness.
+    But this alternative seems worse as it does not distinguish between tags.
+
   
 NOTES:
   Tag count should be updated during HMM.
@@ -150,6 +157,8 @@ NOTES:
     else
       wordTagStatsFinal.setLogPrTGivenTFromTCount(this)
     wordTagStatsFinal.setLogPrWGivenT(this, dictionary)
+    
+    singletonWordsPerTag = singletonWordsPerTag.map(_ / lstData.length.toDouble)
     log info("tokens in dictionary data: " + lstData.length)
     log info(wordTagStatsFinal.toString)
     log info(this.toString)

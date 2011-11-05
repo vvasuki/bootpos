@@ -50,10 +50,10 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
           using the tagged-data learning code can be tricky.
         Also it may not be desirable to totally forget things learned
           with either the trainingStats (which possibly is from a dictionary.)
-        Also, in case of singletonCounts (used to determine exclusiveness of a tag
-          and thence Pr(NW|T)) updated from a dictionary,
-          it is important to scale it down - otherwise Pr(NW|T) can be too high.
-
+        
+        Note that singletonWordsPerTag is not touched below -
+          If needed it should be scaled down elsewhere.
+        
         Hence, we do the below.
         The fraction 1/wordTagStats.numWords is arbitrarily chosen.
         Smaller the fraction, lesser the weight given to training counts.
