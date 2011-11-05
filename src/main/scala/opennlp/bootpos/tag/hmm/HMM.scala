@@ -158,7 +158,7 @@ NOTES:
       wordTagStatsFinal.setLogPrTGivenTFromTCount(this)
     wordTagStatsFinal.setLogPrWGivenT(this, dictionary)
     
-    singletonWordsPerTag = singletonWordsPerTag.map(_ / lstData.length.toDouble)
+    wordTagStatsFinal.singletonWordsPerTag = wordTagStatsFinal.singletonWordsPerTag.map(_ / lstData.length.toDouble)
     log info("tokens in dictionary data: " + lstData.length)
     log info(wordTagStatsFinal.toString)
     log info(this.toString)
