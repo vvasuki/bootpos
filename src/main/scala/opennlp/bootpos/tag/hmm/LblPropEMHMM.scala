@@ -23,7 +23,10 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats) {
         numWordsTraining (Required during evaluation.)
         singletonWordsPerTag [and optionally other counts using dictionary] (required for computing Pr(W|T))
           then scales it down by numWords.
-      For completeness, it does other things done by HMM.trainWithDictionary
+      For completeness, it does other things done by HMM.trainWithDictionary.
+        This is because we now have some information to initialize HMM probabilities,
+          although we expect untagged data to do label propagation + EM.
+        Further, we need to update singletonWordsPerTag.
       See comments for that function too.
   Confidence in correctness: High.
   Reason: Proved correct.
@@ -37,19 +40,24 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats) {
 /*  
   Does label propagation to get a label distribution for the untagged text.
   Uses this to deduce initial parameters to run EM with.
-  Confidence in correctness: Low.
-  Reason: Implementation incomplete.
+  Confidence in correctness: High.
+  Reason: Proved correct.
   */
   override def processUntaggedData(textIn: ArrayBuffer[String]) = {
     val textInUp = textIn.map(_.map(_.toUpper))
     val tokenSeq1 = textInUp.map(x => lblPropTagger.getWordId(x))
     val labelDistributions = lblPropTagger.getLabelDistributions(tokenSeq1)
+    log info "Got label distribution from label propagation."
+
+    // Now forget counts derived from dictionary - but not completely.
+    //   (See comments for EMHMM.processTokenSeq)
+    wordTagStatsFinal.scaleDown(1/wordTagStatsFinal.numWords.toDouble)
 
     wordTagStatsFinal.updateCountsPr(tokenSeq1, this, labelDistributions)
+    log info "Initialized HMM parameters using label distribution."
 
     // Free memory.
     lblPropTagger = null
-    System.exit(1)
     
 /*    Ensure that the following, which leads to errors, does not happen above:
     x is tagged sentenceSepTagStr for x != sentenceSepWordStr.*/

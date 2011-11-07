@@ -66,9 +66,10 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   Confidence: High
   Reason: Proved correct.
 */
-  def updateWordCount(text: ArrayBuffer[Int], hmm: HMM) = {
+  def updateWordCount(text: ArrayBuffer[Int], hmm: HMM, bUpdateEmissionProb: Boolean = true) = {
+    log info "updating wordCount with bUpdateEmissionProb "+ bUpdateEmissionProb 
     text.indices.foreach(x => wordCount.addAt(x, 1))
-    setLogPrWGivenT(hmm)
+    if(bUpdateEmissionProb ) setLogPrWGivenT(hmm)
   }
 /*
   Updates wordTagCount, tagCount, singleton-counts to ensure consistency.
@@ -142,6 +143,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 
 //  Prerequisites:
 //     Set tagBeforeTagCount, tagCount.
+//       If tagBeforeTagCount contains integers, it is used for smoothing.
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def setLogPrTGivenT(hmm: HMM) = {
@@ -286,7 +288,8 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
   Purpose:
       0. Execute forward/ backward algorithm.
       1. Update wordTagCount, tagBeforeTagCount, tagCount
-      2. Update: logPrTGivenT logPrWGivenT logPrNovelWord
+      2. Update: logPrTGivenT (not smoothed)
+          logPrWGivenT logPrNovelWord (smoothed using singletonWordsPerTag)
   Assumptions:
     1. singletonWordsPerTag is to be updated before calling this, if necessary.
       As explained in http://comp.ling.utexas.edu/_media/courses/2010/spring/natural_language_processing/nlp10_hw4.pdf ,
@@ -350,19 +353,47 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
   Purpose:
       1. Update various counts required for computing logPrTGivenT etc..
         These include: wordTagCount, tagBeforeTagCount,
-        tagCount, tokenCount
+        tagCount, wordCount
       1a. Note that wordCount is not updated below
         as initial-parameter computation doesn't require it'-
         it is updated later, before the EM iteration.
       2. Update: logPrTGivenT logPrWGivenT logPrNovelWord
+  ASSUMPTION: singletonWordsPerTag should be updated beforehand.
   Confidence: High.
-  Reason: Proved correct. Also verified with ic test data.
+  Reason: Proved correct.
 
 */
   def updateCountsPr(text: ArrayBuffer[Int], hmm: EMHMM, prTag: IndexedSeq[IndexedSeq[(Int, Double)]]) = {
+    log info "Updating counts using label distribution"
+    // update wordCount
+    updateWordCount(text, hmm, bUpdateEmissionProb = false)
+    
     val numTokens = text.length
-    log error "Implementation incomplete"
-    System.exit(1)
+    text.indices.foreach(i => {
+      val token = text(i)
+      val tagDistribution = prTag(i)
+      tagDistribution.foreach(x => {
+        val tag = x._1; val probability = x._2
+        // Update tagCount
+        //   - the above is good mainly for being an easy way to count numTokens.
+        //  Its main purpose of calculating Pr(tag), is wasted because little weight (~ 0)
+        //    is likely to be given to it in finding Pr(t|t_0)
+        tagCount.addAt(tag, probability)
+
+        // Update wordTagCount
+        wordTagCount.addAt(token, tag, probability)
+
+          // Update tagBeforeTagCount
+        if(i>0) prTag(i-1).foreach(y => {
+          val prevTag = x._1; val probabilityPrevTag = x._2
+          tagBeforeTagCount.addAt(prevTag, tag, probability*probabilityPrevTag)
+        })
+      })
+    })
+    setLogPrTGivenT(hmm)
+    setLogPrWGivenT(hmm)
+    log info(hmm.toString)
+    
   }
 
 }

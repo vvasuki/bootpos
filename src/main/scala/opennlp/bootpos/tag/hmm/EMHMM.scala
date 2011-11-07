@@ -34,7 +34,7 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
     val numIterations = BootPos.numIterations
 //     Note: wordCount updated using untagged data.
     log info(this.toString)
-    wordTagStatsFinal.updateWordCount(text, this)
+    wordTagStatsFinal.updateWordCount(text, this, bUpdateEmissionProb = false)
 
     log info("\n\nInitial counts:")
     log info(wordTagStatsFinal.toString)
@@ -56,9 +56,10 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
         
         Hence, we do the below.
         The fraction 1/wordTagStats.numWords is arbitrarily chosen.
+        Could perhaps have used wordTagStats.tagCount.sum.toDouble.
         Smaller the fraction, lesser the weight given to training counts.
 */
-        wordTagStats.scaleDown(1/wordTagStats.numWords.toDouble)
+        wordTagStats.scaleDown(1/wordTagStats.tagCount.sum.toDouble)
         log info("Not using training stats.")
         log info(wordTagStats.toString)
       }

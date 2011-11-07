@@ -118,7 +118,10 @@ abstract class MatrixBuffer[T, X](rowsIn: Int, colsIn: Int, defaultValue: T = nu
 //  Reason: Proved correct.
   def numRows = matrix.length
   def size = Array(numRows, numCols)
+
+  // Apply never fails due to there being too few columns.
   def apply(row: Int, col: Int): T
+
   def update(row: Int, col: Int, value: T)
 
 // Methods to update matrix size using default values as necessary.
@@ -151,6 +154,12 @@ abstract class MatrixBuffer[T, X](rowsIn: Int, colsIn: Int, defaultValue: T = nu
     getCol(col).foldRight(z)(op)
   }
 
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def addAt(row: Int, col: Int, diff: T)(implicit num: Numeric[T]) = {
+    updateSize(row+1, col+1)
+    update(row, col, num.plus(apply(row, col), diff))
+  }
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
