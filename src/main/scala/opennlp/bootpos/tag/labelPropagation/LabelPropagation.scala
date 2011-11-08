@@ -237,7 +237,9 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
       }
       else {
         val v = graph._vertices.get(nodeNamer.tok(tokenId))
-        (allTags.indices zip getLabelDistribution(v, allTags)).filterNot(x => x._2 == 0)
+        val topTags = (allTags.indices zip getLabelDistribution(v, allTags)).sortBy(x => x._2).takeRight(3)
+        // log debug topTags.toString
+        topTags
       }
     })
     tagDistribution
