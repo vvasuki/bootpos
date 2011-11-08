@@ -29,26 +29,16 @@ trait LabelPropagation extends Tagger{
   }
 
 //     Input: v: Vertex which is a word node, but is not sentenceSepWordStr.
-//   Confidence: High
-//   Reason: Proved correct.
-  def getLabelDistribution(v: Vertex, possibleTags: IndexedSeq[String] = tagsToPropagate map getTagStr) = {
-    // Note that GetEstimatedLabelScore(l) returns 0 for any l not propagated.
-    val scores = possibleTags map (v.GetEstimatedLabelScore(_))
-    val sumScores = scores.sum
-    scores map(x => x/sumScores.toDouble)
-  }
-
-//     Input: v: Vertex which is a word node, but is not sentenceSepWordStr.
   def getBestLabel(v: Vertex, possibleTags: IndexedSeq[String] = tagsToPropagate map getTagStr):String = {
     // log info("possibleTags " + possibleTags)
     val mostFrequentTag = getTagStr(bestTagsOverall.head)
-    val distribution = getLabelDistribution(v, possibleTags)
-    val maxScore = distribution.max
-    val minScore = distribution.min
+    val scores = possibleTags map (v.GetEstimatedLabelScore(_))
+    val maxScore = scores.max
+    val minScore = scores.min
 
     // log info("Scores " + minScore + " " + maxScore)
     if(maxScore > minScore)
-      possibleTags(distribution.indices.find(distribution(_) == maxScore).get)
+      possibleTags(scores.indices.find(scores(_) == maxScore).get)
     else{
       log error("getBestLabel: maxScore == minScore!")
       System.exit(1)
@@ -237,9 +227,13 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
       }
       else {
         val v = graph._vertices.get(nodeNamer.tok(tokenId))
-        val topTags = (allTags.indices zip getLabelDistribution(v, allTags)).sortBy(x => x._2).takeRight(3)
-        // log debug topTags.toString
-        topTags
+        val scores = allTags.map(v.GetEstimatedLabelScore(_))
+        val topTags = (allTags.indices zip scores).sortBy(x => x._2).takeRight(3)
+        val sumScores = topTags.map(x => x._2).sum
+
+        val distribution = topTags map (x => (x._1, x._2/sumScores))
+        // log debug distribution.toString
+        distribution
       }
     })
     tagDistribution
