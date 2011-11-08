@@ -385,7 +385,7 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
 
           // Update tagBeforeTagCount
         if(i>0) prTag(i-1).foreach(y => {
-          val prevTag = x._1; val probabilityPrevTag = x._2
+          val prevTag = y._1; val probabilityPrevTag = y._2
           tagBeforeTagCount.addAt(prevTag, tag, probability*probabilityPrevTag)
         })
       })
