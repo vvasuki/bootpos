@@ -12,9 +12,10 @@ import upenn.junto.app._
 
 class LblPropEMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingStats: Boolean = false) extends
 EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats) {
-  var lblPropTagger = new LabelPropagationTagger(sentenceSepTagStr, sentenceSepWordStr)
-  this.tagIntMap = lblPropTagger.tagIntMap
-  this.wordIntMap = lblPropTagger.wordIntMap
+  var lblPropTrainer = new LabelPropagationTrainer(sentenceSepTagStr, sentenceSepWordStr)
+  var lblPropTagger: Tagger = null
+  tagger.intMap = lblPropTagger.intMap
+  this.intMap = tagger.intMap
 
 /*
   Claims:
@@ -32,9 +33,10 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats) {
   Reason: Proved correct.
   */
   override def trainWithDictionary(dictionary: Dictionary) = {
-    lblPropTagger.trainWithDictionary(dictionary)
+    lblPropTagger = lblPropTrainer.trainWithDictionary(dictionary)
     super.trainWithDictionary(dictionary)
-    log info "Trained with "+ numWordsTraining + " words."
+    log info "Trained with "+ intMap.numWordsTraining + " words."
+    tagger
   }
 
 /*  
@@ -45,24 +47,26 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats) {
   */
   override def processUntaggedData(textIn: ArrayBuffer[String]) = {
     val textInUp = textIn.map(_.map(_.toUpper))
-    val tokenSeq1 = textInUp.map(x => lblPropTagger.getWordId(x))
-    val labelDistributions = lblPropTagger.getLabelDistributions(tokenSeq1)
+    val tokenSeq1 = textInUp.map(x => intMap.getWordId(x))
+    val labelDistributions = lblPropTagger.getTagDistributions(tokenSeq1).asInstanceOf
     log info "Got label distribution from label propagation."
 
     // Now forget counts derived from dictionary - but not completely.
     //   (See comments for EMHMM.processTokenSeq)
     wordTagStatsFinal.scaleDown(1/wordTagStatsFinal.numWords.toDouble)
 
-    wordTagStatsFinal.updateCountsPr(tokenSeq1, this, labelDistributions)
+    wordTagStatsFinal.updateCountsPr(tokenSeq1, tagger, labelDistributions)
     log info "Initialized HMM parameters using label distribution."
 
     // Free memory.
+    lblPropTrainer = null
     lblPropTagger = null
     
 /*    Ensure that the following, which leads to errors, does not happen above:
     x is tagged sentenceSepTagStr for x != sentenceSepWordStr.*/
 
     super.processTokenSeq(tokenSeq1)
+    tagger
   }
 
 }

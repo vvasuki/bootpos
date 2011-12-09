@@ -3,20 +3,19 @@ import opennlp.tools.postag._
 import opennlp.tools.util._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.immutable.Stream
+import org.slf4j.LoggerFactory
 
 
 //  Warning: The implementation of reset does not behave as expected.
 //  This is because of the difficulty in constructing a stream from a scala iterator.
 //  This is by design: we think that reset() will not be called.
 class TaggedSentenceStream(wordTagIter: Iterator[Array[String]], sentenceSepTagStr: String) extends ObjectStream[POSSample] {
-//    Supposed to equal one more than the maximum wordId found in wordTagIter so far by read().
-//    Confidence: High
-//    Reason: read() proved correct.
+  val log = LoggerFactory.getLogger(this.getClass)
 
 //  Confidence: Low.
 //  Reason: Deliberately not well designed.
 //  We assume that the defined funcitonality is not required.
-  def close() = {println("TaggedSentenceStream.close")}
+  def close() = {log warn "Doing nothing!"}
 
 //  Confidence: Low.
 //  Reason: Deliberately not well designed.
@@ -41,3 +40,4 @@ class TaggedSentenceStream(wordTagIter: Iterator[Array[String]], sentenceSepTagS
     new POSSample(words.toArray, tags.toArray)
   }
 }
+

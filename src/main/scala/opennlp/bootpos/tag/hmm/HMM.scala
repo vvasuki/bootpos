@@ -8,26 +8,18 @@ import scala.collection.mutable.LinkedList
 import opennlp.bootpos.util.collection._
 import opennlp.bootpos.util._
 
-class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
+class HMMTagger extends Tagger{
 //   Probabilities are stored in log space to avoid underflow.
 // logPrTGivenT, due to its small size, should be precomputed.
-  var logPrTGivenT = new MatrixBufferDense[Double](TAGNUM_IN, TAGNUM_IN)
+  var logPrTGivenT = new MatrixBufferDense[Double](intMap.TAGNUM_IN, intMap.TAGNUM_IN)
 /*
   Considerations in deciding whether to compute logPrWGivenT:
   1. Test set may not contain many words seen in training set.
   2. We may want to avoid repeated computation for words which appear multiple times.
   My guess is that [2] outweighs [1].
 */
-  var logPrWGivenT = new MatrixBufferDense[Double](WORDNUM_IN, TAGNUM_IN, defaultValue = math.log(0))
-  var logPrNovelWord = new ExpandingArray[Double](TAGNUM_IN, defaultValue = math.log(0))
-
-  val wordTagStatsFinal = new WordTagStats(TAGNUM_IN, WORDNUM_IN)
-  
-  val sentenceSepTag = getTagId(sentenceSepTagStr)
-  val sentenceSepWord = getWordId(sentenceSepWordStr)
-  //added sentenceSepWord, hence the following.
-  numWordsTraining = 1
-
+  var logPrWGivenT = new MatrixBufferDense[Double](intMap.WORDNUM_IN, intMap.TAGNUM_IN, defaultValue = math.log(0))
+  var logPrNovelWord = new ExpandingArray[Double](intMap.TAGNUM_IN, defaultValue = math.log(0))
 
 
 //   Confidence: High.
@@ -71,14 +63,71 @@ class HMM(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Tagger{
 
     str +=("\nBig sum_W Pr(W|T) " + (0 to numTags-1).
       map(checkLogPrWGivenT(_)).filter(math.abs(_)> 1E-4))
-    str +=("\n W|T=### "+ logPrWGivenT.getCol(sentenceSepTag).filter(_ != Double.NegativeInfinity))
-    str +=("\n NW|T=### "+ logPrNovelWord(sentenceSepTag))
+    str +=("\n W|T=### "+ logPrWGivenT.getCol(intMap.sentenceSepTag).filter(_ != Double.NegativeInfinity))
+    str +=("\n NW|T=### "+ logPrNovelWord(intMap.sentenceSepTag))
     str += "\n Pr(NW|T) " + logPrNovelWord
     str += "\n===\n"
     str
   }
 
 
+  
+//  Confidence in correctness: High.
+//  Reason: Well tested.
+  def tag(testDataIn: ArrayBuffer[String])= {
+    log info "tagging"
+    log info(this.toString)
+    val testData = testDataIn.map(intMap.getWordId)
+    val numTokens = testData.length
+    val numTags = intMap.numTags;
+
+    var bestPrevTag = new MatrixBufferDense[Int](numTokens + 1, numTags)
+    var logPrSequence = new MatrixBufferDense[Double](numTokens + 1, numTags, defaultValue=math.log(0))
+
+    // A flag to indicate that we are not expecting the next token
+    // to be sentenceSepWordStr. Necessary for correct perplexity calculation.
+    var bSeekSentence = true
+
+    logPrSequence(0, intMap.sentenceSepTag) = math.log(1)
+    for{tokenNum <- 1 to numTokens;
+        token = testData(tokenNum-1)
+        tag <- wordTagStatsFinal.possibleTags(token)
+    }{
+      val logPrW = getPrWGivenT(token, tag)
+      var logPrJ = matrixMath.vp(logPrSequence(tokenNum-1), logPrW)
+//      Ensure that perplexity is not affected by empty sentences.
+      if(!(bSeekSentence && token==intMap.sentenceSepWord))
+        logPrJ = matrixMath.vp(logPrJ, logPrTGivenT(tag))
+      
+      logPrSequence(tokenNum, tag) = logPrJ.max
+      bestPrevTag(tokenNum, tag) = logPrJ.indexOf(logPrSequence(tokenNum, tag))
+
+      bSeekSentence = token == intMap.sentenceSepWord
+
+//      log info("logPrSeq "+ logPrSequence(tokenNum))
+//      log info("# "+tokenNum + " w " + token + " tg "+ tag + " tg_{-1} "+ bestPrevTag(tokenNum, tag))
+    }
+
+    val bestTags = new ArrayBuffer[Int](numTokens)
+    bestTags(numTokens-1) = logPrSequence(numTokens).indexOf(logPrSequence(numTokens).max)
+    var perplexity = math.exp(-logPrSequence(numTokens, bestTags(numTokens-1))/numTokens)
+    log info("Perplexity: " + perplexity)
+
+    for(tokenNum <- numTokens-2 to 0 by -1) {
+      bestTags(tokenNum) = bestPrevTag(tokenNum+2, bestTags(tokenNum+1))
+    }
+    
+//      log info(tokenNum + " : " + token + " : "+ resultPair(tokenNum))
+    // log debug testData.mkString(" ")
+    // log debug bestTags.mkString(" ")
+    bestTags.map(intMap.getWordStr)
+  }
+
+}
+
+class HMMTrainer(sentenceSepTagStr :String, sentenceSepWordStr: String) extends TaggerTrainer(sentenceSepTagStr, sentenceSepWordStr) {
+  val tagger = new HMMTagger()
+  val wordTagStatsFinal = new WordTagStats(intMap.TAGNUM_IN, intMap.WORDNUM_IN, intMap)
 
 /*
 Claims.
@@ -93,14 +142,15 @@ Correctly updates the following:
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def train(iter: Iterator[Array[String]]) = {
-    val lstData = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
+    val lstData = iter.map(x => Array(intMap.getWordId(x(0)), intMap.getTagId(x(1)))).toList
     log info "Training using tagged sequence."
 //     print(lstData.take(10).map(_.mkString(":")).mkString(", "))
 
-    wordTagStatsFinal.updateCounts(lstData, this)
-    numWordsTraining = numWordsTotal
+    wordTagStatsFinal.updateCounts(lstData, tagger)
+    intMap.numWordsTraining = intMap.numWordsTotal
 /*    log info(wordTagStatsFinal)
-    log info(this)*/
+    log info(tagger)*/
+    tagger
   }
 
 /*
@@ -111,7 +161,7 @@ Correctly updates the following:
   logPrTGivenT
   logPrNovelWord
   logPrWGivenT
-  
+
 Problems to consider when creating an initial HMM model from a dictionary.
 1] The dictionary may be incomplete in two ways:
   1a] There may be missing words.
@@ -138,7 +188,7 @@ NOTE regarding singletonWordsPerTag:
     Set it to 1-dictionary.completeness.
     But this alternative seems worse as it does not distinguish between tags.
 
-  
+
 NOTES:
   Tag count should be updated during HMM.
   Ensure EM iterations start with fresh counts when starting point has been deduced from a wiktionary.
@@ -147,69 +197,21 @@ NOTES:
 //  Reason: Seems to be fine.
   override def trainWithDictionary(dictionary: Dictionary) = {
     var lstData = dictionary.lstData.
-    map(x => Array(getWordId(x(0)), getTagId(x(1))))
-    numWordsTraining = numWordsTotal
-    
+    map(x => Array(intMap.getWordId(x(0)), intMap.getTagId(x(1))))
+    intMap.numWordsTraining = intMap.numWordsTotal
+
     wordTagStatsFinal.updateWordTagCount(lstData.toList, bUpdateWordCount = false)
     val bUniformModelForTags = true
     if(bUniformModelForTags)
-      logPrTGivenT = new MatrixBufferDense[Double](numTags, numTags, math.log(1/numTags.toDouble), true)
+      tagger.logPrTGivenT = new MatrixBufferDense[Double](numTags, numTags, math.log(1/numTags.toDouble), true)
     else
-      wordTagStatsFinal.setLogPrTGivenTFromTCount(this)
-    wordTagStatsFinal.setLogPrWGivenT(this, dictionary)
-    
+      wordTagStatsFinal.setLogPrTGivenTFromTCount(tagger)
+    wordTagStatsFinal.setLogPrWGivenT(tagger, dictionary)
+
     wordTagStatsFinal.singletonWordsPerTag = wordTagStatsFinal.singletonWordsPerTag.map(_ / lstData.length.toDouble)
     log info("tokens in dictionary data: " + lstData.length)
     log info(wordTagStatsFinal.toString)
-    log info(this.toString)
+    log info(tagger.toString)
+    tagger
   }
-  
-//  Confidence in correctness: High.
-//  Reason: Well tested.
-  def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
-    log info "testing"
-    log info(wordTagStatsFinal.toString)
-    log info(this.toString)
-    val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
-    val numTokens = testData.length
-    val numTags = wordTagStatsFinal.numTags;
-
-    var bestPrevTag = new MatrixBufferDense[Int](numTokens + 1, numTags)
-    var logPrSequence = new MatrixBufferDense[Double](numTokens + 1, numTags, defaultValue=math.log(0))
-    var bSeekSentence = true
-    logPrSequence(0, sentenceSepTag) = math.log(1)
-    for{tokenNum <- 1 to numTokens;
-        token = testData(tokenNum-1)(0)
-        tag <- wordTagStatsFinal.possibleTags(token, this)
-    }{
-      val logPrW = getPrWGivenT(token, tag)
-      var logPrJ = matrixMath.vp(logPrSequence(tokenNum-1), logPrW)
-//      Ensure that perplexity is not affected by empty sentences.
-      if(!(bSeekSentence && token==sentenceSepWord))
-        logPrJ = matrixMath.vp(logPrJ, logPrTGivenT(tag))
-      logPrSequence(tokenNum, tag) = logPrJ.max
-      bestPrevTag(tokenNum, tag) = logPrJ.indexOf(logPrSequence(tokenNum, tag))
-
-      bSeekSentence = token == sentenceSepWord
-
-//      log info("logPrSeq "+ logPrSequence(tokenNum))
-//      log info("# "+tokenNum + " w " + token + " tg "+ tag + " tg_{-1} "+ bestPrevTag(tokenNum, tag))
-    }
-
-    val bestTags = new Array[Int](numTokens)
-    bestTags(numTokens-1) = logPrSequence(numTokens).indexOf(logPrSequence(numTokens).max)
-    var perplexity = math.exp(-logPrSequence(numTokens, bestTags(numTokens-1))/numTokens)
-    log info("Perplexity: " + perplexity)
-
-    for(tokenNum <- numTokens-2 to 0 by -1) {
-      bestTags(tokenNum) = bestPrevTag(tokenNum+2, bestTags(tokenNum+1))
-    }
-    
-//      log info(tokenNum + " : " + token + " : "+ resultPair(tokenNum))
-    // log debug testData.mkString(" ")
-    // log debug bestTags.mkString(" ")
-
-    getResults(testData, bestTags)
-  }
-
 }

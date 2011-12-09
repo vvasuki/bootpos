@@ -11,27 +11,27 @@ import scala.collection.immutable.IndexedSeq
 import opennlp.bootpos.util.collection._
 import opennlp.bootpos.app._
 
-trait LabelPropagation extends Tagger{
-  val sentenceSepTag = 0
-  val wordTagMap = new MatrixBufferDense[Int](WORDNUM_IN, TAGNUM_IN)
+trait LabelPropagationTaggerBase extends Tagger{
+  val nodeNamer = new NodeNamer(intMap)
+  val wordTagMap = new MatrixBufferDense[Int](intMap.WORDNUM_IN, intMap.TAGNUM_IN)
 
-  def tagsToPropagate = (0 to numTags-1) filterNot(_ == sentenceSepTag)
+  def tagsToPropagate = (0 to numTags-1) filterNot(_ == intMap.sentenceSepTag)
 
 //    Set tag-node labels.
-//    Exclude sentenceSepTag: we don't want it propagating.
+//    Exclude intMap.sentenceSepTag: we don't want it propagating.
 //   Confidence: High
 //   Reason: Well tested.
   def getTagLabels = {
     val labels = tagsToPropagate.map(x =>
-      LabelCreator(nodeNamer.t(x), getTagStr(x))
+      LabelCreator(nodeNamer.t(x), intMap.getTagStr(x))
     )
     labels
   }
 
-//     Input: v: Vertex which is a word node, but is not sentenceSepWordStr.
-  def getBestLabel(v: Vertex, possibleTags: IndexedSeq[String] = tagsToPropagate map getTagStr):String = {
+//     Input: v: Vertex which is a word node, but is not intMap.sentenceSepWordStr.
+  def getBestLabel(v: Vertex, possibleTags: IndexedSeq[String] = tagsToPropagate map intMap.getTagStr):String = {
     // log info("possibleTags " + possibleTags)
-    val mostFrequentTag = getTagStr(bestTagsOverall.head)
+    val mostFrequentTag = intMap.getTagStr(bestTagsOverall.head)
     val scores = possibleTags map (v.GetEstimatedLabelScore(_))
     val maxScore = scores.max
     val minScore = scores.min
@@ -46,42 +46,8 @@ trait LabelPropagation extends Tagger{
     }
   }
 
-//   Confidence: High
-//   Reason: Well tested.
-  def updateWordTagMap(txtIn: Iterator[Array[Int]]) = {
-    for(Array(token, tag) <- txtIn){
-      wordTagMap.increment(token, tag)
-    }
-    numWordsTraining = wordTagMap.numRows
-    // It is possible that some tags, possible according to a dictionary, are not seen in testData.
-    // So the below.
-    wordTagMap.updateSize(numWordsTraining, numTags)
-    updateBestTagsOverall
-  }
-
-//  Confidence in correctness: High.
-//  Reason: proved correct.
-  def updateBestTagsOverall = {
-    val tagCount = wordTagMap.colSums
-    bestTagsOverall = bestTagsOverall.+:(tagCount.indexOf(tagCount.max))
-    // log info(bestTagsOverall)
-  }
-
-//  Input: word-token pairs from tagged text.
-//  State alteration: Appropriately update the wordTagMap,
-//    numWordsTraining.
-//  Confidence in correctness: High.
-//  Reason: proved correct.
-  override def trainWithDictionary(dictionary: Dictionary) = {
-    var lstData = dictionary.lstData.
-      map(x => Array(getWordId(x(0)), getTagId(x(1))))
-    updateWordTagMap(lstData.iterator)
-    log info("numWordsTraining "+ numWordsTraining)
-    // wordTagMap.matrix.foreach(x => log.info(x.indexWhere(y => y>0)))
-  }
-
-//   Confidence: High
-//   Reason: Well tested.
+  //   Confidence: High
+  //   Reason: Well tested.
   def makeWordTagEdges = {
     val edges = new ListBuffer[Edge]()
     val numWords = wordTagMap.numRows
@@ -89,7 +55,7 @@ trait LabelPropagation extends Tagger{
     for(word <- 0 to numWords-1) {
 //      Add (w, t) edges
 //        In the case of novel words, simply use the uniform distribution on all possible tags excluding the sentence separator tag.
-      if(word >= numWordsTraining)
+      if(word >= intMap.numWordsTraining)
         tagsToPropagate.foreach{
           x => edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), 1/(numTags-1).toDouble)
         }
@@ -107,32 +73,9 @@ trait LabelPropagation extends Tagger{
     edges
   }
 
-  object nodeNamer {
-  //  Prefixes distinguishing string names for various types of nodes.
-  //  Assumption: They are all of equal length.
-    val P_WORD_TYPE = "W_"
-    val P_CONTEXT = "C_"
-    val P_TAG = "T_"
-    val P_TOKEN = "V_"
-
-  //  For all three "convenience" functions:
-  //  Confidence in correctness: High.
-  //  Reason: proved correct.
-    def w(id: Int) = P_WORD_TYPE + getWordStr(id)
-    def c(context: String) = P_CONTEXT + context
-    def t(id: Int) = P_TAG + getTagStr(id)
-    def tok(id:Int) = P_TOKEN + id.toString
-
-  //  Confidence in correctness: High.
-  //  Reason: proved correct.
-    def deprefixify(nodeName: String): String = nodeName.substring(P_TAG.length)
-  }
-
 }
 
-class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: String) extends LabelPropagation{
-  override val sentenceSepTag = getTagId(sentenceSepTagStr)
-  val sentenceSepWord = getWordId(sentenceSepWordStr)
+class LabelPropagationTagger extends LabelPropagationTaggerBase{
 
   // Updated using addTokenEdges
   val tokenEdges = new ListBuffer[Edge]()
@@ -146,8 +89,8 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //  Reason: proved correct.
   def addTokenEdges(tokenList: List[Int], tagList: List[Int] = null) = {
     log info("adding token edges: ")
-    var prevPrevToken = sentenceSepWord
-    var prevToken = sentenceSepWord
+    var prevPrevToken = intMap.sentenceSepWord
+    var prevToken = intMap.sentenceSepWord
     val tokenListLength = tokenList.length -1
     
     for(seqNum <- 0 to tokenListLength-1) {
@@ -175,17 +118,6 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     log info("Done adding token edges.")
   }
 
-  // Updates word-tag map, creates token edges.
-  //  Confidence in correctness: High.
-  //  Reason: proved correct.
-  def train(iter: Iterator[Array[String]]) = {
-    val txtIn = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
-    log info("training.. ")
-    // log info(txtIn.map(x => x(0) + " " + x(1)).mkString("\n"))
-    updateWordTagMap(txtIn.iterator)
-    addTokenEdges(txtIn.map(_(0)), txtIn.map(_(1)))
-  }
-
 
 // Make graph
 // Confidence in correctness: High.
@@ -209,20 +141,20 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 
 //  Confidence in correctness: Hg.
 //  Reason: .
-  def getLabelDistributions(tokens: ArrayBuffer[Int]) = {
+  def getTagDistributions(tokens: ArrayBuffer[Int]) = {
     log info("getPred ")
     val numPreTestTokens = numTokens
     val graph = propagateLabels(tokens)
 
     // Deduce tags.
     // Proved correct.
-    val allTags = (0 to numTags - 1) map getTagStr
-    val tagDistrForSentenceSeparators = IndexedSeq((sentenceSepTag, 1.0))
+    val allTags = (0 to numTags - 1) map intMap.getTagStr
+    val tagDistrForSentenceSeparators = IndexedSeq((intMap.sentenceSepTag, 1.0))
     
     val tagDistribution = tokens.indices.map(x => {
       val tokenId = numPreTestTokens + x
       val token = tokens(x)
-      if(token == sentenceSepWord) {
+      if(token == intMap.sentenceSepWord) {
         tagDistrForSentenceSeparators
       }
       else {
@@ -252,8 +184,8 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     val tagsFinal = tokens.indices.map(x => {
       val tokenId = numPreTestTokens + x
       val token = tokens(x)
-      if(token == sentenceSepWord)
-        sentenceSepTagStr
+      if(token == intMap.sentenceSepWord)
+        intMap.sentenceSepTagStr
       else {
       // CHOICE: We are not checking the tag dictionary while
       // picking the label with the max score!
@@ -267,16 +199,31 @@ class LabelPropagationTagger(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
-  def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
-    val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
-    // It is possible that some tags are newly seen in the test data.
-    // So the below.
-    wordTagMap.updateSize(numWordsTotal, numTags)
-
-    val testTokens = testData.map(x => x(0))
-    val tagsFinal = getPredictions(testTokens).map(x => getTagId(x))
-    getResults(testData, tagsFinal.toArray)
+  def tag(tokensIn: ArrayBuffer[String]) = {
+    val testTokens = tokensIn.map(intMap.getWordId)
+    getPredictions(testTokens)
   }
 
+}
+
+class NodeNamer(intMap: IntRepresentor) {
+//  Prefixes distinguishing string names for various types of nodes.
+//  Assumption: They are all of equal length.
+  val P_WORD_TYPE = "W_"
+  val P_CONTEXT = "C_"
+  val P_TAG = "T_"
+  val P_TOKEN = "V_"
+
+//  For all three "convenience" functions:
+//  Confidence in correctness: High.
+//  Reason: proved correct.
+  def w(id: Int) = P_WORD_TYPE + intMap.getWordStr(id)
+  def c(context: String) = P_CONTEXT + context
+  def t(id: Int) = P_TAG + intMap.getTagStr(id)
+  def tok(id:Int) = P_TOKEN + id.toString
+
+//  Confidence in correctness: High.
+//  Reason: proved correct.
+  def deprefixify(nodeName: String): String = nodeName.substring(P_TAG.length)
 }
 

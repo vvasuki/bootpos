@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory
 import java.util.NoSuchElementException
 import java.io.File
 
-class CorpusProcessor(language: String, corpus: String, taggerType: String = "WordTagProbabilities"){
+class CorpusProcessor(language: String, corpus: String, taggerType: String = "SequencelessTagger"){
   val log = LoggerFactory.getLogger(this.getClass)
 
   val DATA_DIR = BootPos.DATA_DIR
@@ -43,20 +43,20 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
-  var tagger: Tagger = null
+  var taggerTrainer: TaggerTrainer = null
   taggerType match {
     case "OpenNLP" => {
-      tagger = new OpenNLP( language, sentenceSepTag, sentenceSepWord)
+      taggerTrainer = new OpenNLPTrainer( language, sentenceSepTag, sentenceSepWord)
     }
     case "HMM" => {
-      tagger = new HMM(sentenceSepTag, sentenceSepWord)
+      taggerTrainer = new HMMTrainer(sentenceSepTag, sentenceSepWord)
     }
     case "EMHMM" => {
-      tagger = new EMHMM(sentenceSepTag, sentenceSepWord, bUseTrainingStats = !(BootPos.bWiktionary || bTrainingDataAsDictionary))
+      taggerTrainer = new EMHMM(sentenceSepTag, sentenceSepWord, bUseTrainingStats = !(BootPos.bWiktionary || bTrainingDataAsDictionary))
       bProcessUntaggedData = true
     }
     case "LblPropEMHMM" => {
-      tagger = new LblPropEMHMM(sentenceSepTag, sentenceSepWord, bUseTrainingStats = !(BootPos.bWiktionary || bTrainingDataAsDictionary))
+      taggerTrainer = new LblPropEMHMM(sentenceSepTag, sentenceSepWord, bUseTrainingStats = !(BootPos.bWiktionary || bTrainingDataAsDictionary))
       bProcessUntaggedData = true
       if(!BootPos.bUseAsDictionary) {
         log error "Operation undefined"
@@ -64,13 +64,15 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
       }
     }
     case "LabelPropagation" => {
-      tagger = new LabelPropagationTagger(sentenceSepTag, sentenceSepWord)
+      taggerTrainer = new LabelPropagationTrainer(sentenceSepTag, sentenceSepWord)
     }
     case _ => {
-      tagger = new WordTagProbabilities(sentenceSepTag, sentenceSepWord)
+      taggerTrainer = new SequencelessTaggerTrainer(sentenceSepTag, sentenceSepWord)
     }
   }
 
+  // The following is set by the train method.
+  var tagger: Tagger = null
   if(BootPos.bWiktionary) train(WIKTIONARY)
   if(BootPos.bUseTrainingData) train(TRAINING_DIR)
 
@@ -106,25 +108,25 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
       val dict = new Dictionary(iter, testWords ++ tokensUntagged)
       dict.addEntry(sentenceSepWord, sentenceSepTag)
       dict.updateCompleteness(tokensUntagged)
-      tagger.trainWithDictionary(dict)
+      tagger = taggerTrainer.trainWithDictionary(dict)
     }
     else if(!bTrainingDataAsDictionary) {
       if(BootPos.taggedTokensLimit > 0)
         iter = iter.take(BootPos.taggedTokensLimit)
-      tagger.train(iter)
+      tagger = taggerTrainer.train(iter)
     }
     else {
       val dict = new Dictionary(iter)
       dict.removeDuplicateEntries
       dict.updateCompleteness(tokensUntagged)
       log info "training with dictionary"
-      tagger.trainWithDictionary(dict)
+      tagger = taggerTrainer.trainWithDictionary(dict)
     }
     if(bProcessUntaggedData){
       log info "processing Untagged Data"
-      tagger.processUntaggedData(tokensUntagged)
+      tagger = taggerTrainer.processUntaggedData(tokensUntagged)
     }
-
+    tagger
   }
 
 //  Confidence in correctness: High.
@@ -132,15 +134,11 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Wo
   def test = {
     log info("Testing " + language + ' ' + corpus);
 
-    tagResults = new TaggingResult()
     val iter = getWordTagIteratorFromFile(TEST_DIR)
     val testData = new ArrayBuffer[Array[String]](10000)
     iter.copyToBuffer(testData)
     log info("test tokens: " + testData.length)
-    val results = tagger.test(testData)
-    tagResults.processTaggingResults(results, testData, sentenceSepWord)
-
-    tagResults.updateAccuracy
+    val tagResults = new TaggerTester(tagger).test(testData)
     // log info("Most frequent tag overall: "+ tagger.bestTagsOverall)
     if(BootPos.bUniversalTags) log info(tagMap.unmappedTags + " unmapped tags.")
     val corpusStr = language + "-" + corpus

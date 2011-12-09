@@ -9,7 +9,7 @@ import opennlp.bootpos.util.collection._
 import opennlp.bootpos.util._
 import org.slf4j.LoggerFactory
 
-class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
+class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int, intMap: IntRepresentor) extends Serializable{
   val log = LoggerFactory.getLogger(this.getClass)
 // entry (i, j) will count number of occurances of tag i before tag j
 // The following are Double arrays because in case of EM-HMM, counts could be a non-integer.
@@ -66,7 +66,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   Confidence: High
   Reason: Proved correct.
 */
-  def updateWordCount(text: ArrayBuffer[Int], hmm: HMM, bUpdateEmissionProb: Boolean = true) = {
+  def updateWordCount(text: ArrayBuffer[Int], hmm: HMMTagger, bUpdateEmissionProb: Boolean = true) = {
     log info "updating wordCount with bUpdateEmissionProb "+ bUpdateEmissionProb 
     text.indices.foreach(x => wordCount.addAt(x, 1))
     if(bUpdateEmissionProb ) setLogPrWGivenT(hmm)
@@ -116,9 +116,9 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   */
   //  Confidence in correctness: High.
   //  Reason: Well tested.
-  def updateCounts(lstData: List[Array[Int]], hmm: HMM) = {
-    val sentenceSepTag = hmm.sentenceSepTag
-    val sentenceSepWord = hmm.sentenceSepWord
+  def updateCounts(lstData: List[Array[Int]], hmm: HMMTagger) = {
+    val sentenceSepTag = intMap.sentenceSepTag
+    val sentenceSepWord = intMap.sentenceSepWord
     var prevTag = sentenceSepTag
     updateWordTagCount(lstData)
     for(fields <- lstData;
@@ -146,7 +146,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 //       If tagBeforeTagCount contains integers, it is used for smoothing.
 //  Confidence in correctness: High.
 //  Reason: Well tested.
-  def setLogPrTGivenT(hmm: HMM) = {
+  def setLogPrTGivenT(hmm: HMMTagger) = {
     val numTokens = tagCount.sum
     for(tag1 <- (0 to numTags-1); tag2 <- (0 to numTags-1)) {
       var s = tagBeforeTagCount(tag2).count(x => x==1) + 1e-100
@@ -158,7 +158,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
   }
 
   // Set Pr(t_i|t_{i-1}) = Pr(t_i).
-  def setLogPrTGivenTFromTCount(hmm: HMM) = {
+  def setLogPrTGivenTFromTCount(hmm: HMMTagger) = {
     val numTokens = tagCount.sum
     for(tag1 <- (0 to numTags-1); tag2 <- (0 to numTags-1)) {
       var x = tagCount(tag1)/numTokens
@@ -173,7 +173,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
 //     Set wordCount, wordTagCount, singletonWordsPerTag.
 //  Confidence in correctness: High.
 //  Reason: Proved Correct.
-  def setLogPrWGivenT(hmm: HMM) = {
+  def setLogPrWGivenT(hmm: HMMTagger) = {
 //     First, calculate Pr(word)
 /*    NOte: It is possible that wordCount.sum is larger than tagCount.sum
     due to the presence of untagged data.
@@ -181,7 +181,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
     val numTokens = wordCount.sum
     // Pr(word) independent of tags, with add 1 smoothing.
     val prWord = wordCount.map(x => (x + 1)/(numTokens + numWords + 1).toDouble)
-    val sentenceSepTag = hmm.sentenceSepTag
+    val sentenceSepTag = intMap.sentenceSepTag
 
 //     Pr(word|tag), smoothed using singleton count and Pr(word)
 //     Note that initially wordTagCount.numRows < wordCount.length is possible.
@@ -197,7 +197,7 @@ class WordTagStats(TAGNUM_IN: Int, WORDNUM_IN: Int) extends Serializable{
       x = x/(s + tagCount(tag).toDouble)
       hmm.logPrWGivenT(word, tag) = math.log(x)
     }
-    hmm.logPrWGivenT(hmm.sentenceSepWord, sentenceSepTag) = math.log(1)
+    hmm.logPrWGivenT(intMap.sentenceSepWord, sentenceSepTag) = math.log(1)
 
     //  Confidence in correctness: High.
     //  Reason: Well tested.
@@ -230,10 +230,10 @@ TODO:
   Confidence: High
   Reason: Well tested.
 */
-  def setLogPrWGivenT(hmm: HMM, dict: Dictionary) = {
+  def setLogPrWGivenT(hmm: HMMTagger, dict: Dictionary) = {
     log info "Setting pr(w|t) fromm dictionary."
     hmm.logPrNovelWord.padTill(numTags, math.log(1 - dict.completeness))
-    val sentenceSepTag = hmm.sentenceSepTag
+    val sentenceSepTag = intMap.sentenceSepTag
     hmm.logPrNovelWord(sentenceSepTag) = math.log(0)
     
     val numTaggedWords = wordTagCount.numRows
@@ -242,17 +242,17 @@ TODO:
       var x = (1 - math.exp(hmm.logPrNovelWord(tag)))*(wtCnt)/(tagCount(tag))
       hmm.logPrWGivenT(word, tag) = math.log(x)
     }
-    hmm.logPrWGivenT(hmm.sentenceSepWord, sentenceSepTag) = math.log(1)
+    hmm.logPrWGivenT(intMap.sentenceSepWord, sentenceSepTag) = math.log(1)
   }
 
 
 //  Confidence in correctness: High.
 //  Reason: Well tested.
-  def possibleTags(token: Int, hmm: HMM) = {
+  def possibleTags(token: Int) = {
     (0 to numTags-1).filter(x =>
       if(token< wordTagCount.numRows)
         wordTagCount(token, x)>0
-      else x!= hmm.sentenceSepTag)
+      else x!= intMap.sentenceSepTag)
   }
 
 
@@ -280,7 +280,7 @@ TODO:
 
 }
 
-class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAGNUM_IN, WORDNUM_IN){
+class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int, intMap: IntRepresentor) extends WordTagStats(TAGNUM_IN, WORDNUM_IN, intMap){
 
 /*
   Example against which much of this code was verified:
@@ -301,12 +301,10 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
   Reason: Proved correct. Also verified with ic test data.
     1. See comments below.
 */
-  def updateCountsEM(text: ArrayBuffer[Int], hmm: EMHMM) = {
+  def updateCountsEM(text: ArrayBuffer[Int], hmm: HMMTagger, forwardPr: MatrixBufferDense[Double], backwardPr: MatrixBufferDense[Double]) = {
     val numTokens = text.length
-    val sentenceSepTag = hmm.sentenceSepTag
+    val sentenceSepTag = intMap.sentenceSepTag
 
-    val forwardPr = hmm.getForwardPr(text)
-    val backwardPr = hmm.getBackwardPr(text)
     val numTokensUntagged = forwardPr.numRows
 
     val logPrTokens = forwardPr(numTokensUntagged-1, sentenceSepTag)
@@ -321,7 +319,7 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
     prepareTableSizes(hmm.numWordsTotal, numTags)
     for{i <- 1 to numTokens-1
       token = text(i)
-      tag <- possibleTags(token, hmm)
+      tag <- possibleTags(token)
     }{
       val prTag = math.exp(forwardPr(i, tag) + backwardPr(i, tag) - logPrTokens)
       wordTagCount(token, tag) = wordTagCount(token, tag) + prTag
@@ -335,8 +333,8 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
 */
     for{i <- 1 to numTokens-1
       token = text(i)
-      tag <- possibleTags(token, hmm)
-      prevTag <- possibleTags(text(i-1), hmm)
+      tag <- possibleTags(token)
+      prevTag <- possibleTags(text(i-1))
     }{
       val prTagPair = forwardPr(i-1, prevTag) + backwardPr(i, tag) - logPrTokens + hmm.getArcPr(tag, prevTag, token)
       tagBeforeTagCount(prevTag, tag) = tagBeforeTagCount(prevTag, tag) + math.exp(prTagPair)
@@ -363,7 +361,7 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int) extends WordTagStats(TAG
   Reason: Proved correct.
 
 */
-  def updateCountsPr(text: ArrayBuffer[Int], hmm: EMHMM, prTag: IndexedSeq[IndexedSeq[(Int, Double)]]) = {
+  def updateCountsPr(text: ArrayBuffer[Int], hmm: HMMTagger, prTag: IndexedSeq[IndexedSeq[(Int, Double)]]) = {
     log info "Updating counts using label distribution"
     // update wordCount
     updateWordCount(text, hmm, bUpdateEmissionProb = false)

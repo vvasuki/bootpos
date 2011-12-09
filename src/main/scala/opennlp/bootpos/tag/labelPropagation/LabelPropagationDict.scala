@@ -9,37 +9,19 @@ import opennlp.bootpos.util.collection._
 import opennlp.bootpos.app._
 
 
-class LabelPropagationDict(sentenceSepTagStr :String, sentenceSepWordStr: String) extends LabelPropagation{
-  override val sentenceSepTag = getTagId(sentenceSepTagStr)
-  val sentenceSepWord = getWordId(sentenceSepWordStr)
+class LabelPropagationDict extends LabelPropagationTaggerBase{
+  val wordAfterWordMap = new MatrixBufferRowSparse[Int](intMap.WORDNUM_IN)
 
-  val wordAfterWordMap = new MatrixBufferRowSparse[Int](WORDNUM_IN)
-
-//  Confidence in correctness: High.
-//  Reason: proved correct.
+  //  Confidence in correctness: High.
+  //  Reason: proved correct.
   def updateWordAfterWordMap(tokenIter: Iterator[Int]) = {
-    var prevToken = sentenceSepWord
+    var prevToken = intMap.sentenceSepWord
     for(token <- tokenIter) {
       wordAfterWordMap.increment(token, prevToken)
       prevToken = token
     }
-    wordAfterWordMap(sentenceSepWord, sentenceSepWord) = 0
+    wordAfterWordMap(intMap.sentenceSepWord, intMap.sentenceSepWord) = 0
   }
-
-//  Input: word-token pairs from tagged text.
-//  State alteration: Appropriately update the wordTagMap and wordAfterWordMap tables,
-//    numTags and numWordsTraining.
-//  Confidence in correctness: High.
-//  Reason: proved correct.
-  def train(iter: Iterator[Array[String]]) = {
-    val txtIn = iter.map(x => Array(getWordId(x(0)), getTagId(x(1)))).toList
-    updateWordTagMap(txtIn.iterator)
-    updateWordAfterWordMap(txtIn.map(_(0)).iterator)
-    updateBestTagsOverall
-  }
-
-
-
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
@@ -59,7 +41,7 @@ class LabelPropagationDict(sentenceSepTagStr :String, sentenceSepWordStr: String
 //      Add (w, p) edges
       var numOcc = wordAfterWordMap(word).values.sum
       wordAfterWordMap(word).foreach(x => {
-        val context = getWordStr(x._1)
+        val context = intMap.getWordStr(x._1)
         edges += new Edge(nodeNamer.w(word), nodeNamer.c(context), x._2/numOcc.toDouble)
       })
 
@@ -96,37 +78,6 @@ class LabelPropagationDict(sentenceSepTagStr :String, sentenceSepWordStr: String
     graph
   }
 
-//  Tasks:
-//    Update wordAfterWordMap with information from testData.
-//    Return the expected labels list.
-//  Confidence in correctness: High.
-//  Reason: Proved correct.
-//  Claims:
-//    wordAfterWordMap is updated using testData.
-//    For each word occuring in testData,
-//      there is a Label in the expectedTags list.
-//      This Label is correctly chosen based on actual tags
-//      observed in the test data.
-  def prepareGraphData(testData: ArrayBuffer[Array[Int]]): List[Label] = {
-    var wordTagMapTest = new MatrixBufferDense[Int]((1.5*numWordsTraining).toInt, numTags)
-    val tokenList = testData.map(x => x(0))
-    var testWordSet = tokenList.toSet
-    updateWordAfterWordMap(tokenList.iterator)
-
-    testData.foreach(x=> wordTagMapTest.increment(x(0), x(1)))
-
-    var expectedLabels = testWordSet.map(x => {
-      val tagFreq = wordTagMapTest(x)
-      val tags = tagFreq.indices.filter(y => tagFreq(y)>0);
-      tags.map(y => {
-        val tagStr = getTagStr(y);
-        val tagPr = tagFreq(y)/tagFreq.sum.toDouble;
-        new Label(nodeNamer.w(x), tagStr, tagPr);
-      }).toList
-    }).toList.flatten
-    return expectedLabels
-  }
-
 //  Get tag labels from graph.
 //  Confidence in correctness: Moderate.
 //  Reason: Proved correct but test on ic database fails to produce expected results.
@@ -136,13 +87,13 @@ class LabelPropagationDict(sentenceSepTagStr :String, sentenceSepWordStr: String
     import scala.collection.JavaConverters._
     val nodeNames = graph._vertices.keySet.asScala
     nodeNames.filter(_.startsWith(nodeNamer.P_WORD_TYPE)).
-      filterNot(_ == nodeNamer.w(sentenceSepWord)).
+      filterNot(_ == nodeNamer.w(intMap.sentenceSepWord)).
       foreach(x => {
       val v = graph._vertices.get(x)
       val tagStr = getBestLabel(v)
       wtMap(nodeNamer.deprefixify(x)) = tagStr
     })
-    wtMap(sentenceSepWordStr) = sentenceSepTagStr
+    wtMap(intMap.sentenceSepWordStr) = intMap.sentenceSepTagStr
     wtMap
   }
 
@@ -153,31 +104,37 @@ class LabelPropagationDict(sentenceSepTagStr :String, sentenceSepWordStr: String
 //
 //  Confidence in correctness: Moderate.
 //  Reason: Proved correct but test on ic database fails to produce expected results.
-  def test(testDataIn: ArrayBuffer[Array[String]]): ArrayBuffer[Array[Boolean]] = {
-    val testData = testDataIn.map(x => Array(getWordId(x(0)), getTagId(x(1))))
-
-
-    var expectedLabels = prepareGraphData(testData)
-    var graph = getGraph(expectedLabels)
+  def tag(testDataIn: ArrayBuffer[String]) = {
+    val testData = testDataIn.map(intMap.getWordId)
+    updateWordAfterWordMap(testData.iterator)
+    var graph = getGraph()
     JuntoRunner(graph, 1.0, .01, .01, BootPos.numIterations, false)
     val wtMap = getPredictions(graph)
 
     var resultPair = new ArrayBuffer[Array[Boolean]](testData.length)
-    testData.indices.foreach(i => {
-      val Array(token, actualTag) = testData(i)
-      val tokenStr = getWordStr(token)
-
-      val bNovelWord = (token >= numWordsTraining)
-//       println("tokenStr: "+ getWordStr(token)+ " tag "+ tagStr + "act: "+getTagStr(actualTag))
-      val tagStr = wtMap(tokenStr)
-      val bCorrect = tagIntMap(tagStr) == actualTag
-      resultPair += Array(bCorrect, bNovelWord)
+    testData.map(token => {
+      val tokenStr = intMap.getWordStr(token)
+      wtMap(tokenStr)
     })
-
-    //val resultPair = testData map { (t,tag) => ... }
-
-    resultPair
   }
 
+}
+
+class LabelPropagationDictTrainer(sentenceSepTagStr :String, sentenceSepWordStr: String) extends LabelPropagationTrainer(sentenceSepTagStr, sentenceSepWordStr) {
+  override val tagger  = new LabelPropagationDict()
+  val wordAfterWordMap = tagger.wordAfterWordMap
+
+//  Input: word-token pairs from tagged text.
+//  State alteration: Appropriately update the wordTagMap and wordAfterWordMap tables,
+//    numTags and numWordsTraining.
+//  Confidence in correctness: High.
+//  Reason: proved correct.
+  def train(iter: Iterator[Array[String]]) = {
+    val txtIn = iter.map(x => Array(intMap.getWordId(x(0)), intMap.getTagId(x(1)))).toList
+    updateWordTagMap(txtIn.iterator)
+    tagger.updateWordAfterWordMap(txtIn.map(_(0)).iterator)
+    updateBestTagsOverall
+    tagger
+  }
 }
 

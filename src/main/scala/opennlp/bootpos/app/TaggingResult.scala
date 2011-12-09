@@ -1,8 +1,12 @@
 package opennlp.bootpos.app
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.IndexedSeq
+import org.slf4j.LoggerFactory
+import opennlp.bootpos.tag._
 
 class TaggingResult {
+  val log = LoggerFactory.getLogger(this.getClass)
   var numTestTokensKnown = 0
   var numTestTokensSeen = 0
   var numTestTokensNovel = 0
@@ -53,23 +57,42 @@ class TaggingResult {
 
 //  Confidence in correctness: High.
 //  Reason: Well tested.
-  def processTaggingResults(results: ArrayBuffer[Array[Boolean]], testData: ArrayBuffer[Array[String]], sentenceSepWord: String)= {
-    val bUntaggedTextUsed = results(0).length>2
-    // TODO: record tag Mistakes
+  def processTaggingResults(bCorrect: IndexedSeq[Boolean], bNonTraining: IndexedSeq[Boolean], bUnseen: IndexedSeq[Boolean] = null, bSentenceSep: IndexedSeq[Boolean])= {
+    val bUntaggedTextUsed = bUnseen == null
 
-    for {i <- testData.indices.iterator
-      if(testData(i)(0) != sentenceSepWord)
-    }{
-      val tag = testData(i)(0);
-      val bCorrect  = results(i)(0)
-
-      // The token has been seen in tagged text.
-      val bNovelToken = results(i)(1)
-
-      // The token has been seen in untagged text - so not entirely novel.
-      val bSeenToken = if(bUntaggedTextUsed) results(i)(2) else false
-      update(bCorrect, bNovelToken, bSeenToken)
-    }
+    bCorrect.indices.filterNot(bSentenceSep(_)).foreach(i => {
+      val bSeenToken = if(bUntaggedTextUsed) bNonTraining(i) && !bUnseen(i)
+        else false
+      update(bCorrect(i), bNonTraining(i), bSeenToken)
+    })
   }
 }
 
+class TaggerTester(tagger: Tagger) {
+  val log = LoggerFactory.getLogger(this.getClass)
+  val intMap = tagger.intMap
+
+//   ASSUMPTIONS: tokens and tags are assumed to be in the correct case.
+  def test(testData: ArrayBuffer[Array[String]]) = {
+    val tokens = testData.map(_(0))
+    val tagsActual = testData.map(_(1))
+    val tags = tagger.tag(tokens)
+    
+    val bTokenNonTraining = tokens.map(intMap.isNonTraining)
+    val bTokenUnseen = tokens.map(intMap.isUnseen)
+    val bSentenceSep = tokens.map(_ == intMap.sentenceSepWordStr)
+    val bCorrect = tags map (_ == tagsActual)
+
+    examineMistakes(tags, tagsActual)
+
+    val tagResults = new TaggingResult()
+    tagResults.processTaggingResults(bCorrect, bTokenNonTraining, bTokenUnseen, bSentenceSep)
+    tagResults.updateAccuracy
+    tagResults
+
+  }
+  
+  def examineMistakes(tags: IndexedSeq[String], tagsActual: IndexedSeq[String]) = {
+    log error "Incomplete"
+  }
+}
