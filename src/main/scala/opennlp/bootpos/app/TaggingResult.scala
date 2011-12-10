@@ -13,6 +13,7 @@ class TaggingResult {
   var correctTaggingsKnown = 0
   var correctTaggingsSeen = 0
   var correctTaggingsNovel = 0
+  var maxErrorTags = ""
 
   var accuracy = 0.0
   var accuracyKnown = 0.0
@@ -83,9 +84,8 @@ class TaggerTester(tagger: Tagger) {
     val bSentenceSep = tokens.map(_ == intMap.sentenceSepWordStr)
     val bCorrect = tags map (_ == tagsActual)
 
-    examineMistakes(tags, tagsActual)
-
     val tagResults = new TaggingResult()
+    tagResults.maxErrorTags = examineMistakes(tags, tagsActual).toString
     tagResults.processTaggingResults(bCorrect, bTokenNonTraining, bTokenUnseen, bSentenceSep)
     tagResults.updateAccuracy
     tagResults
@@ -93,6 +93,8 @@ class TaggerTester(tagger: Tagger) {
   }
   
   def examineMistakes(tags: IndexedSeq[String], tagsActual: IndexedSeq[String]) = {
-    log error "Incomplete"
+    val taggingErrors = tags zip tagsActual filterNot (x => x._1 == x._2) groupBy (x => x) mapValues (_.size)
+    val maxError = taggingErrors.values.max
+    taggingErrors.filter(x => x._2 == maxError).keys.head
   }
 }
