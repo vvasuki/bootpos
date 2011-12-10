@@ -45,14 +45,14 @@ class TaggingResult {
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def updateAccuracy = {
-    var correctTaggings = correctTaggingsKnown + correctTaggingsNovel
-    var numTestTokens = numTestTokensKnown + numTestTokensNovel
+    var correctTaggings = correctTaggingsKnown + correctTaggingsSeen + correctTaggingsNovel
+    var numTestTokens = numTestTokensKnown + numTestTokensSeen + numTestTokensNovel
     accuracy = correctTaggings/ numTestTokens.toDouble
     accuracyKnown = correctTaggingsKnown/ numTestTokensKnown.toDouble
     accuracySeen = correctTaggingsSeen/ numTestTokensSeen.toDouble
     accuracyNovel = correctTaggingsNovel/ numTestTokensNovel.toDouble
     novelTokensFrac = numTestTokensNovel/numTestTokens.toDouble
-    log info ("Accuracy: %.3f, (Known: %.3f, Novel: %.3f)\n" format (accuracy, accuracyKnown, accuracyNovel))
+    log info ("Accuracy: %.3f, (Training: %.3f, Seen: %3f, Novel: %.3f)\n" format (accuracy, accuracyKnown, accuracySeen, accuracyNovel))
     log info ("Non training tokens: %.3f\n" format (novelTokensFrac))
     
     
@@ -91,6 +91,7 @@ class TaggerTester(tagger: Tagger) {
     val tagResults = new TaggingResult()
     tagResults.maxErrorTags = examineMistakes(tags, tagsActual).toString
     tagResults.processTaggingResults(bCorrect, bTokenNonTraining, bTokenUnseen, bSentenceSep)
+    log info intMap.toString
     tagResults.updateAccuracy
     tagResults
 
