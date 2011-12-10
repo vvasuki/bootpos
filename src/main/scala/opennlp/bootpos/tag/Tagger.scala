@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory
 
 // The purpose of this class is to map all words and tags to integers,
 // and to keep track of words seen during the training phase.
-class IntRepresentor {
+class IntRepresentor extends Serializable{
   val log = LoggerFactory.getLogger(this.getClass)
   // We want to allow wordIntMap and tagIntMap to be supplied
   // while building compound taggers.
@@ -88,9 +88,9 @@ class IntRepresentor {
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def possibleTags(token: Int) = {
-      if(token< wordTagList.numRows)
-        wordTagList(token).keys
-      else (0 to numTags-1).filterNot(_ == sentenceSepTag)
+    if(token< wordTagList.numRows)
+      wordTagList(token).keys
+    else (0 to numTags-1).filterNot(_ == sentenceSepTag)
   }
   def updateWordTagList(lstData: Seq[Array[Int]]) = {
     lstData.foreach(x => wordTagList.increment(x(0), x(1)))

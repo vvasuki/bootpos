@@ -88,6 +88,8 @@ class HMMTagger extends Tagger{
     // to be sentenceSepWordStr. Necessary for correct perplexity calculation.
     var bSeekSentence = true
 
+    log debug intMap.possibleTags(intMap.sentenceSepTag) + " tag for  ###"
+
     logPrSequence(0, intMap.sentenceSepTag) = math.log(1)
     for{tokenNum <- 1 to numTokens;
         token = testData(tokenNum-1)
@@ -108,7 +110,7 @@ class HMMTagger extends Tagger{
 //      log info("# "+tokenNum + " w " + token + " tg "+ tag + " tg_{-1} "+ bestPrevTag(tokenNum, tag))
     }
 
-    val bestTags = new ArrayBuffer[Int](numTokens)
+    val bestTags = new ExpandingArray[Int](numTokens)
     bestTags(numTokens-1) = logPrSequence(numTokens).indexOf(logPrSequence(numTokens).max)
     var perplexity = math.exp(-logPrSequence(numTokens, bestTags(numTokens-1))/numTokens)
     log info("Perplexity: " + perplexity)
@@ -120,7 +122,7 @@ class HMMTagger extends Tagger{
 //      log info(tokenNum + " : " + token + " : "+ resultPair(tokenNum))
     // log debug testData.mkString(" ")
     // log debug bestTags.mkString(" ")
-    bestTags.map(intMap.getWordStr)
+    bestTags.map(intMap.getTagStr)
   }
 
 }
