@@ -13,7 +13,6 @@ import opennlp.bootpos.app._
 
 trait LabelPropagationTaggerBase extends Tagger{
   val nodeNamer = new NodeNamer(intMap)
-  val wordTagMap = new MatrixBufferDense[Int](intMap.WORDNUM_IN, intMap.TAGNUM_IN)
 
   def tagsToPropagate = (0 to numTags-1) filterNot(_ == intMap.sentenceSepTag)
 
@@ -50,8 +49,8 @@ trait LabelPropagationTaggerBase extends Tagger{
   //   Reason: Well tested.
   def makeWordTagEdges = {
     val edges = new ListBuffer[Edge]()
-    val numWords = wordTagMap.numRows
-    // log info("wordTagMap.numRows "+wordTagMap.numRows)
+    val numWords = intMap.wordTagList.numRows
+    // log info("intMap.wordTagList.numRows "+intMap.wordTagList.numRows)
     for(word <- 0 to numWords-1) {
 //      Add (w, t) edges
 //        In the case of novel words, simply use the uniform distribution on all possible tags excluding the sentence separator tag.
@@ -60,13 +59,12 @@ trait LabelPropagationTaggerBase extends Tagger{
           x => edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), 1/(numTags-1).toDouble)
         }
       else {
-//        In case of known words, this would be derived from wordTagMap.
+//        In case of known words, this would be derived from intMap.wordTagList.
 //      Assumption : Every word w \in Training has atleast one tag associated with it.
-        val numTaggings = wordTagMap(word).sum
-        val possibleTags = (0 to numTags-1).filter(wordTagMap(word, _) > 0)
+        val numTaggings = intMap.wordTagList(word).values.sum
         // log info("possibleTags " + possibleTags)
-        possibleTags.foreach(x =>
-          edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), wordTagMap(word, x)/numTaggings.toDouble))
+        intMap.possibleTags(word).foreach(x =>
+          edges += new Edge(nodeNamer.w(word), nodeNamer.t(x), intMap.wordTagList(word, x)/numTaggings.toDouble))
       }
     }
     // log info(edges.mkString("\n"))
@@ -125,7 +123,7 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
   def propagateLabels(tokens: ArrayBuffer[Int]) = {
     addTokenEdges(tokens.toList)
     val wordTagEdges = makeWordTagEdges
-    // log debug(wordTagMap)
+    // log debug(intMap.wordTagList)
     // log debug("wtEdges" + wordTagEdges.mkString("\n"))
     val edges = tokenEdges ++ wordTagEdges
     // log debug("tokenEdges " + tokenEdges.mkString("\n"))
@@ -141,7 +139,7 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
 
 //  Confidence in correctness: Hg.
 //  Reason: .
-  def getTagDistributions(tokens: ArrayBuffer[Int]) = {
+  override def getTagDistributions(tokens: ArrayBuffer[Int]) = {
     log info("getPred ")
     val numPreTestTokens = numTokens
     val graph = propagateLabels(tokens)

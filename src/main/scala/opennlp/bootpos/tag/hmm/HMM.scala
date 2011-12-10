@@ -91,7 +91,7 @@ class HMMTagger extends Tagger{
     logPrSequence(0, intMap.sentenceSepTag) = math.log(1)
     for{tokenNum <- 1 to numTokens;
         token = testData(tokenNum-1)
-        tag <- wordTagStatsFinal.possibleTags(token)
+        tag <- intMap.possibleTags(token)
     }{
       val logPrW = getPrWGivenT(token, tag)
       var logPrJ = matrixMath.vp(logPrSequence(tokenNum-1), logPrW)
@@ -145,6 +145,7 @@ Correctly updates the following:
     val lstData = iter.map(x => Array(intMap.getWordId(x(0)), intMap.getTagId(x(1)))).toList
     log info "Training using tagged sequence."
 //     print(lstData.take(10).map(_.mkString(":")).mkString(", "))
+    lstData.foreach(x => intMap.wordTagList.increment(x(0), x(1)))
 
     wordTagStatsFinal.updateCounts(lstData, tagger)
     intMap.numWordsTraining = intMap.numWordsTotal
@@ -199,6 +200,7 @@ NOTES:
     var lstData = dictionary.lstData.
     map(x => Array(intMap.getWordId(x(0)), intMap.getTagId(x(1))))
     intMap.numWordsTraining = intMap.numWordsTotal
+    lstData.foreach(x => intMap.wordTagList.increment(x(0), x(1)))
 
     wordTagStatsFinal.updateWordTagCount(lstData.toList, bUpdateWordCount = false)
     val bUniformModelForTags = true

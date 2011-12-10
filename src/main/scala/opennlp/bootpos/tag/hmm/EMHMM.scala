@@ -85,8 +85,8 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
     forwardPr(0, intMap.sentenceSepTag) = math.log(1)
     for{i <- 1 to numTokens-1
       token = text(i)
-      tag <- wordTagStatsFinal.possibleTags(token)
-      prevTag <- wordTagStatsFinal.possibleTags(text(i-1))
+      tag <- intMap.possibleTags(token)
+      prevTag <- intMap.possibleTags(text(i-1))
     }
     {
       // transition probability given prior tokens
@@ -122,8 +122,8 @@ class EMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingS
     backwardPr(numTokens-1, intMap.sentenceSepTag) = math.log(1)
     for{i <- numTokens-1 to 1 by -1
       token = text(i)
-      tag <- wordTagStatsFinal.possibleTags(token)
-      prevTag <- wordTagStatsFinal.possibleTags(text(i-1))
+      tag <- intMap.possibleTags(token)
+      prevTag <- intMap.possibleTags(text(i-1))
     }
     {
       // transition probability given succeeding tokens

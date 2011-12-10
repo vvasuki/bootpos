@@ -2,6 +2,8 @@ package opennlp.bootpos.util.collection
 
 import opennlp.bootpos.util._
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.ListMap
+import scala.collection.Map
 import scala.collection.immutable.HashMap
 import java.util.NoSuchElementException
 import scala.collection.generic._
@@ -252,10 +254,8 @@ class MatrixBufferDense[T] (rowsIn: Int, colsIn: Int, defaultValue: T = null.asI
   }
 }
 
-// Each row is a HashMap where keys are stored in a trie/ prefix tree. So excessive memory is not wasted in storing sparse data.
-// So each row is sparse.
-class MatrixBufferRowSparse[T] (rowsIn: Int, colsIn: Int = 0, defaultValue: T = null.asInstanceOf[T], bSetInitSize: Boolean = false) extends MatrixBuffer[T, HashMap[Int, T]](rowsIn, colsIn, defaultValue, bSetInitSize){
 
+abstract class MatrixBufferMapRows[T](rowsIn: Int, colsIn: Int = 0, defaultValue: T = null.asInstanceOf[T], bSetInitSize: Boolean = false) extends MatrixBuffer[T, Map[Int, T]](rowsIn, colsIn, defaultValue, bSetInitSize) {
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
   def apply(row: Int, col: Int): T = if(col >= numCols) throw new NoSuchElementException(""+col)
@@ -263,7 +263,14 @@ class MatrixBufferRowSparse[T] (rowsIn: Int, colsIn: Int = 0, defaultValue: T = 
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
-  def apply(row: Int): HashMap[Int, T] = matrix(row)
+  def apply(row: Int): Map[Int, T] = matrix(row)
+
+}
+
+// One way of having sparse rows.
+// Each row is a immutable.HashMap where keys are stored in a trie/ prefix tree. So excessive memory is not wasted in storing sparse data.
+// So each row is sparse.
+class MatrixBufferTrieRows[T](rowsIn: Int, colsIn: Int = 0, defaultValue: T = null.asInstanceOf[T], bSetInitSize: Boolean = false) extends MatrixBufferMapRows(rowsIn, colsIn, defaultValue, bSetInitSize){
 
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
@@ -273,10 +280,32 @@ class MatrixBufferRowSparse[T] (rowsIn: Int, colsIn: Int = 0, defaultValue: T = 
 //  Reason: Proved correct.
   def update(row: Int, col: Int, value: T) = {
     expandBuffer(row, col)
-    if(value == 0) matrix(row) = matrix(row) - col
+    if(value == defaultValue) matrix(row) = matrix(row) - col
     else matrix(row) = matrix(row) + (col -> value)
   }
   
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def increment(row: Int, col: Int)(implicit numeric: Numeric[T]) = {
+    expandBuffer(row, col)
+    matrix(row) = matrix(row) + (col -> numeric.plus(apply(row, col), 1.asInstanceOf[T]))
+  }
+}
+
+// Another way of having sparse rows.
+class MatrixBufferListRows[T] (rowsIn: Int, colsIn: Int = 0, defaultValue: T = null.asInstanceOf[T], bSetInitSize: Boolean = false) extends MatrixBufferMapRows(rowsIn, colsIn, defaultValue, bSetInitSize){
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def getEmptyRow = new ListMap[Int, T]()
+
+//  Confidence in correctness: High.
+//  Reason: Proved correct.
+  def update(row: Int, col: Int, value: T) = {
+    expandBuffer(row, col)
+    if(value == defaultValue) matrix(row) = matrix(row) - col
+    else matrix(row) = matrix(row) + (col -> value)
+  }
+
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
   def increment(row: Int, col: Int)(implicit numeric: Numeric[T]) = {

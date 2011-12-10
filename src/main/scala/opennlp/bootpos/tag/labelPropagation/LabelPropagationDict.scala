@@ -10,7 +10,7 @@ import opennlp.bootpos.app._
 
 
 class LabelPropagationDict extends LabelPropagationTaggerBase{
-  val wordAfterWordMap = new MatrixBufferRowSparse[Int](intMap.WORDNUM_IN)
+  val wordAfterWordMap = new MatrixBufferTrieRows[Int](intMap.WORDNUM_IN)
 
   //  Confidence in correctness: High.
   //  Reason: proved correct.
@@ -120,7 +120,7 @@ class LabelPropagationDict extends LabelPropagationTaggerBase{
 
 }
 
-class LabelPropagationDictTrainer(sentenceSepTagStr :String, sentenceSepWordStr: String) extends LabelPropagationTrainer(sentenceSepTagStr, sentenceSepWordStr) {
+class LabelPropagationDictTrainer(sentenceSepTagStr :String, sentenceSepWordStr: String) extends TaggerTrainer(sentenceSepTagStr, sentenceSepWordStr) {
   override val tagger  = new LabelPropagationDict()
   val wordAfterWordMap = tagger.wordAfterWordMap
 
@@ -130,10 +130,11 @@ class LabelPropagationDictTrainer(sentenceSepTagStr :String, sentenceSepWordStr:
 //  Confidence in correctness: High.
 //  Reason: proved correct.
   def train(iter: Iterator[Array[String]]) = {
-    val txtIn = iter.map(x => Array(intMap.getWordId(x(0)), intMap.getTagId(x(1)))).toList
-    updateWordTagMap(txtIn.iterator)
-    tagger.updateWordAfterWordMap(txtIn.map(_(0)).iterator)
+    val lstData = iter.map(x => Array(intMap.getWordId(x(0)), intMap.getTagId(x(1)))).toList
+    lstData.foreach(x => intMap.wordTagList.increment(x(0), x(1)))
+    intMap.numWordsTraining = intMap.numWordsTotal
     updateBestTagsOverall
+    tagger.updateWordAfterWordMap(lstData.map(_(0)).iterator)
     tagger
   }
 }

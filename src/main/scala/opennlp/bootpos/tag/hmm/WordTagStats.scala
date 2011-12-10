@@ -246,15 +246,6 @@ TODO:
   }
 
 
-//  Confidence in correctness: High.
-//  Reason: Well tested.
-  def possibleTags(token: Int) = {
-    (0 to numTags-1).filter(x =>
-      if(token< wordTagCount.numRows)
-        wordTagCount(token, x)>0
-      else x!= intMap.sentenceSepTag)
-  }
-
 
 //  Confidence in correctness: High.
 //  Reason: Well tested.
@@ -319,7 +310,7 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int, intMap: IntRepresentor) 
     prepareTableSizes(hmm.numWordsTotal, numTags)
     for{i <- 1 to numTokens-1
       token = text(i)
-      tag <- possibleTags(token)
+      tag <- intMap.possibleTags(token)
     }{
       val prTag = math.exp(forwardPr(i, tag) + backwardPr(i, tag) - logPrTokens)
       wordTagCount(token, tag) = wordTagCount(token, tag) + prTag
@@ -333,8 +324,8 @@ class WordTagStatsProb(TAGNUM_IN: Int, WORDNUM_IN: Int, intMap: IntRepresentor) 
 */
     for{i <- 1 to numTokens-1
       token = text(i)
-      tag <- possibleTags(token)
-      prevTag <- possibleTags(text(i-1))
+      tag <- intMap.possibleTags(token)
+      prevTag <- intMap.possibleTags(text(i-1))
     }{
       val prTagPair = forwardPr(i-1, prevTag) + backwardPr(i, tag) - logPrTokens + hmm.getArcPr(tag, prevTag, token)
       tagBeforeTagCount(prevTag, tag) = tagBeforeTagCount(prevTag, tag) + math.exp(prTagPair)

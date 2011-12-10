@@ -18,6 +18,10 @@ class IntRepresentor {
   var wordIntMap = new BijectiveHashMap[String, Int]
   var tagIntMap = new BijectiveHashMap[String, Int]
 
+  def numTags = tagIntMap.size
+  def numWordsTotal = wordIntMap.size
+
+
   // Initial guesses about number of tags and words
   val TAGNUM_IN = 25
   val WORDNUM_IN = 3000
@@ -26,14 +30,38 @@ class IntRepresentor {
   // to identify words not seen during the training phase.
   var numWordsTraining = 0
   var numWordsSeen = 0
+  def isNonTraining(word: String) = getWordId(word) >= numWordsTraining
+  def isUnseen(word: String) = getWordId(word) >= numWordsSeen
 
+  
+  //  Confidence in correctness: High.
+  //  Reason: Well tested.
   // The below is used to determine if wordIntMap should be blind to case.
   var bIgnoreCase = true
+  def getWordId(wordIn: String): Int = {
+    var word = wordIn
+    if(bIgnoreCase)
+      word = word.map(_.toUpper)
+    if(!wordIntMap.contains(word))
+      wordIntMap.put(word, wordIntMap.size)
+    wordIntMap(word)
+  }
 
+  
+  // Some frequently used values.
   var sentenceSepTag = 0
   var sentenceSepWord = 0
   var sentenceSepTagStr = ""
   var sentenceSepWordStr = ""
+  def setSentenceSeparators(sentenceSepTagStrIn: String, sentenceSepWordStrIn: String) = {
+    sentenceSepTagStr = sentenceSepTagStrIn
+    sentenceSepWordStr = sentenceSepWordStrIn
+    sentenceSepTag = getTagId(sentenceSepTagStr)
+    sentenceSepWord = getWordId(sentenceSepWordStr)
+    //added sentenceSepWord (supposedly during training), hence the following.
+    numWordsTraining = numWordsTotal
+  }
+
 
   //  Confidence in correctness: High.
   //  Reason: Well tested.
@@ -46,34 +74,18 @@ class IntRepresentor {
     tagIntMap(tag)
   }
   
-  def numTags = tagIntMap.size
-  def numWordsTotal = wordIntMap.size
-  
-  //  Confidence in correctness: High.
-  //  Reason: Well tested.
-  def getWordId(wordIn: String): Int = {
-    var word = wordIn
-    if(bIgnoreCase)
-      word = word.map(_.toUpper)
-    if(!wordIntMap.contains(word))
-      wordIntMap.put(word, wordIntMap.size)
-    wordIntMap(word)
-  }
-
-  def setSentenceSeparators(sentenceSepTagStrIn: String, sentenceSepWordStrIn: String) = {
-    sentenceSepTagStr = sentenceSepTagStrIn
-    sentenceSepWordStr = sentenceSepWordStrIn
-    sentenceSepTag = getTagId(sentenceSepTagStr)
-    sentenceSepWord = getWordId(sentenceSepWordStr)
-    //added sentenceSepWord (supposedly during training), hence the following.
-    numWordsTraining = numWordsTotal
-  }
-
   def getTagStr(tag: Int) = tagIntMap.getKey(tag).get
   def getWordStr(word: Int) = wordIntMap.getKey(word).get
 
-  def isNonTraining(word: String) = getWordId(word) >= numWordsTraining
-  def isUnseen(word: String) = getWordId(word) >= numWordsSeen
+  var wordTagList = new MatrixBufferListRows[Int](WORDNUM_IN, TAGNUM_IN)
+//  Confidence in correctness: High.
+//  Reason: Well tested.
+  def possibleTags(token: Int) = {
+      if(token< wordTagList.numRows)
+        wordTagList(token).keys
+      else (0 to numTags-1).filterNot(_ == sentenceSepTag)
+  }
+
 }
 
 trait Tagger extends Serializable{
@@ -102,6 +114,14 @@ abstract class TaggerTrainer(sentenceSepTagStr :String, sentenceSepWordStr: Stri
   
   def numTags = intMap.numTags
   
+//  Confidence in correctness: High.
+//  Reason: proved correct.
+  def updateBestTagsOverall = {
+    val tagCount = intMap.wordTagList.colSums
+    tagger.bestTagsOverall = tagger.bestTagsOverall.+: (tagCount.indexOf(tagCount.max))
+    // log info(bestTagsOverall)
+  }
+
   def train(iter: Iterator[Array[String]]): Tagger
   def trainWithDictionary(dictionary: Dictionary) = train(dictionary.lstData.toIterator: Iterator[Array[String]])
   def processUntaggedData(lstTokens : ArrayBuffer[String]) = {log warn "Doing nothing!"; tagger}
