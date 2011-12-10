@@ -6,6 +6,7 @@ import opennlp.bootpos.util.collection._
 
 class LabelPropagationTrainer(sentenceSepTagStr: String, sentenceSepWordStr: String) extends TaggerTrainer(sentenceSepTagStr, sentenceSepWordStr){
   override val tagger = new LabelPropagationTagger
+  setIntMap
 
 
   // Updates word-tag map, creates token edges.

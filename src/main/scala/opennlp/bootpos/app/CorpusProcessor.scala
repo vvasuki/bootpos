@@ -142,7 +142,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Se
     // log info("Most frequent tag overall: "+ tagger.bestTagsOverall)
     if(BootPos.bUniversalTags) log info(tagMap.unmappedTags + " unmapped tags.")
     val corpusStr = language + "-" + corpus
-    ArrayBuffer(corpusStr, ""+ tagResults.accuracy, ""+tagResults.accuracyKnown, ""+tagResults.accuracyNovel, ""+tagResults.novelTokensFrac, tagResults.maxErrorTags)
+    ArrayBuffer(corpusStr, ""+ tagResults.accuracy, ""+tagResults.accuracyKnown, ""+tagResults.accuracySeen, ""+tagResults.accuracyNovel, ""+tagResults.novelTokensFrac, tagResults.maxErrorTags)
   }
 
 

@@ -29,8 +29,15 @@ class IntRepresentor {
   // The below quantity is used, together with wordIntMap,
   // to identify words not seen during the training phase.
   var numWordsTraining = 0
+  def updateNumWordsTraining = {
+    numWordsTraining = numWordsTotal
+  }
   var numWordsSeen = 0
-  def isNonTraining(word: String) = getWordId(word) >= numWordsTraining
+  def updateNumWordsSeen = {
+    numWordsTraining = numWordsSeen
+  }
+  def isNonTraining(wordId: Int): Boolean = wordId >= numWordsTraining
+  def isNonTraining(word: String): Boolean = isNonTraining(getWordId(word))
   def isUnseen(word: String) = getWordId(word) >= numWordsSeen
 
   
@@ -59,7 +66,7 @@ class IntRepresentor {
     sentenceSepTag = getTagId(sentenceSepTagStr)
     sentenceSepWord = getWordId(sentenceSepWordStr)
     //added sentenceSepWord (supposedly during training), hence the following.
-    numWordsTraining = numWordsTotal
+    updateNumWordsTraining
   }
 
 
@@ -85,12 +92,16 @@ class IntRepresentor {
         wordTagList(token).keys
       else (0 to numTags-1).filterNot(_ == sentenceSepTag)
   }
-
+  def updateWordTagList(lstData: Seq[Array[Int]]) = {
+    lstData.foreach(x => wordTagList.increment(x(0), x(1)))
+    updateNumWordsTraining
+  }
 }
 
 trait Tagger extends Serializable{
   val log = LoggerFactory.getLogger(this.getClass)
   var bestTagsOverall = new LinkedList[Int]()
+  var bestTagsByFreq: ArrayBuffer[Iterable[Int]] = null
 
   // The below will be set during training
   var intMap = new IntRepresentor()
@@ -108,9 +119,12 @@ trait Tagger extends Serializable{
 
 abstract class TaggerTrainer(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Serializable {
   val log = LoggerFactory.getLogger(this.getClass)
-  val tagger: Tagger
-  var intMap = tagger.intMap
-  intMap.setSentenceSeparators(sentenceSepTagStr, sentenceSepWordStr)
+  val tagger: Tagger = null
+  var intMap: IntRepresentor = null
+  def setIntMap = {
+    intMap = tagger.intMap
+    intMap.setSentenceSeparators(sentenceSepTagStr, sentenceSepWordStr)
+  }
   
   def numTags = intMap.numTags
   
@@ -121,6 +135,10 @@ abstract class TaggerTrainer(sentenceSepTagStr :String, sentenceSepWordStr: Stri
     tagger.bestTagsOverall = tagger.bestTagsOverall.+: (tagCount.indexOf(tagCount.max))
     // log info(bestTagsOverall)
   }
+
+  def updateBestTagsByFreq ={tagger.bestTagsByFreq = intMap.wordTagList.matrix.map(
+    lst => lst filter (x => x._2 == lst.values.max) keys
+  )}
 
   def train(iter: Iterator[Array[String]]): Tagger
   def trainWithDictionary(dictionary: Dictionary) = train(dictionary.lstData.toIterator: Iterator[Array[String]])

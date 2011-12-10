@@ -53,7 +53,8 @@ class OpenNLP extends Tagger{
 
 class OpenNLPTrainer(languageCode: String, sentenceSepTagStr :String, sentenceSepWordStr: String) extends TaggerTrainer(sentenceSepTagStr, sentenceSepWordStr)
  {
-  override val tagger = new OpenNLP()
+  override val tagger = new OpenNLP
+  setIntMap
 // Computation:
 //  Update wordIntMap.
 //  Train the POSModel.

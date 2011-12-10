@@ -126,7 +126,8 @@ class HMMTagger extends Tagger{
 }
 
 class HMMTrainer(sentenceSepTagStr :String, sentenceSepWordStr: String) extends TaggerTrainer(sentenceSepTagStr, sentenceSepWordStr) {
-  val tagger = new HMMTagger()
+  override val tagger = new HMMTagger
+  setIntMap
   val wordTagStatsFinal = new WordTagStats(intMap.TAGNUM_IN, intMap.WORDNUM_IN, intMap)
 
 /*
@@ -145,10 +146,9 @@ Correctly updates the following:
     val lstData = iter.map(x => Array(intMap.getWordId(x(0)), intMap.getTagId(x(1)))).toList
     log info "Training using tagged sequence."
 //     print(lstData.take(10).map(_.mkString(":")).mkString(", "))
-    lstData.foreach(x => intMap.wordTagList.increment(x(0), x(1)))
+    intMap.updateWordTagList(lstData)
 
     wordTagStatsFinal.updateCounts(lstData, tagger)
-    intMap.numWordsTraining = intMap.numWordsTotal
 /*    log info(wordTagStatsFinal)
     log info(tagger)*/
     tagger
@@ -199,8 +199,7 @@ NOTES:
   override def trainWithDictionary(dictionary: Dictionary) = {
     var lstData = dictionary.lstData.
     map(x => Array(intMap.getWordId(x(0)), intMap.getTagId(x(1))))
-    intMap.numWordsTraining = intMap.numWordsTotal
-    lstData.foreach(x => intMap.wordTagList.increment(x(0), x(1)))
+    intMap.updateWordTagList(lstData)
 
     wordTagStatsFinal.updateWordTagCount(lstData.toList, bUpdateWordCount = false)
     val bUniformModelForTags = true

@@ -121,7 +121,8 @@ class LabelPropagationDict extends LabelPropagationTaggerBase{
 }
 
 class LabelPropagationDictTrainer(sentenceSepTagStr :String, sentenceSepWordStr: String) extends TaggerTrainer(sentenceSepTagStr, sentenceSepWordStr) {
-  override val tagger  = new LabelPropagationDict()
+  override val tagger  = new LabelPropagationDict
+  setIntMap
   val wordAfterWordMap = tagger.wordAfterWordMap
 
 //  Input: word-token pairs from tagged text.

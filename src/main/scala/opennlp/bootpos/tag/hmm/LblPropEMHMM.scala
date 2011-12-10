@@ -15,7 +15,7 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats) {
   var lblPropTrainer = new LabelPropagationTrainer(sentenceSepTagStr, sentenceSepWordStr)
   var lblPropTagger: Tagger = null
   tagger.intMap = lblPropTagger.intMap
-  this.intMap = tagger.intMap
+  setIntMap
 
 /*
   Claims:
