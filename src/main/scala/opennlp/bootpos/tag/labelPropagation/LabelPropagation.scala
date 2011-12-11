@@ -10,9 +10,12 @@ import scala.collection.mutable.ListMap
 import scala.collection.immutable.IndexedSeq
 import opennlp.bootpos.util.collection._
 import opennlp.bootpos.app._
+import opennlp.bootpos.util.io.fileUtil
 
 trait LabelPropagationTaggerBase extends Tagger{
   val nodeNamer = new NodeNamer(intMap)
+  var graph: Graph = null
+  var edges: ListBuffer[Edge] = null
 
   def tagsToPropagate = (0 to numTags-1) filterNot(_ == intMap.sentenceSepTag)
 
@@ -29,16 +32,18 @@ trait LabelPropagationTaggerBase extends Tagger{
 
 //     Input: v: Vertex which is a word node, but is not intMap.sentenceSepWordStr.
   def getBestLabel(v: Vertex, possibleTags: IndexedSeq[String] = tagsToPropagate map intMap.getTagStr):String = {
-    // log info("possibleTags " + possibleTags)
+    // log debug("possibleTags " + possibleTags)
     val mostFrequentTag = intMap.getTagStr(bestTagsOverall.head)
     val scores = possibleTags map (v.GetEstimatedLabelScore(_))
+    // log debug scores.mkString(" ")
     val maxScore = scores.max
     val minScore = scores.min
 
-    // log info("Scores " + minScore + " " + maxScore)
+    // log debug ("Scores " + minScore + " " + maxScore)
     if(maxScore > minScore)
       possibleTags(scores.indices.find(scores(_) == maxScore).get)
     else{
+      log debug scores.mkString(" ")
       log error("getBestLabel: maxScore == minScore!")
       System.exit(1)
       mostFrequentTag
@@ -69,6 +74,15 @@ trait LabelPropagationTaggerBase extends Tagger{
     }
     // log info(edges.mkString("\n"))
     edges
+  }
+
+  def edgesToCsv = {
+    fileUtil.write(BootPos.DATA_DIR + "/edges.csv")(p => {
+      edges.foreach{ edge => {
+      val Array(n1, n2, w) = edge.toString.split("\t");
+      p.println(n1 + "\t" + n2)}
+      }
+    })
   }
 
 }
@@ -109,7 +123,7 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
         tokenLabels += LabelCreator(nodeNamer.tok(tokenId), nodeNamer.t(tagList(seqNum)))
         // tokenEdges += new Edge(nodeNamer.tok(tokenId), nodeNamer.t(tagList(seqNum)), 1)
       else
-        tokenEdges += new Edge(nodeNamer.tok(tokenId), nodeNamer.w(prevToken), 1)
+        tokenEdges += new Edge(nodeNamer.tok(tokenId), nodeNamer.w(token), 1)
     }
     // update numTokens
     numTokens += tokenList.length
@@ -125,12 +139,13 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
     val wordTagEdges = makeWordTagEdges
     // log debug(intMap.wordTagList)
     // log debug("wtEdges" + wordTagEdges.mkString("\n"))
-    val edges = tokenEdges ++ wordTagEdges
+    edges = tokenEdges ++ wordTagEdges
+    // edgesToCsv
     // log debug("tokenEdges " + tokenEdges.mkString("\n"))
     val labels = getTagLabels ++ tokenLabels
     // log debug("getTagLabels " + getTagLabels.mkString("\n"))
     // log debug("tokenLabels " + tokenLabels.mkString("\n"))
-    val graph = GraphBuilder(edges.toList, labels.toList)
+    graph = GraphBuilder(edges.toList, labels.toList)
     // Run junto.
     JuntoRunner(graph, 1.0, .01, .01, BootPos.numIterations, false)
     graph
@@ -156,7 +171,7 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
         tagDistrForSentenceSeparators
       }
       else {
-        val v = graph._vertices.get(nodeNamer.tok(tokenId))
+        val v = graph.GetVertex(nodeNamer.tok(tokenId))
         val scores = allTags.map(v.GetEstimatedLabelScore(_))
         val topTags = (allTags.indices zip scores).sortBy(x => x._2).takeRight(3)
         val sumScores = topTags.map(x => x._2).sum
@@ -172,8 +187,9 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
 // See the CHOICE-note below.
 //  Confidence in correctness: High.
 //  Reason: Proved correct.
-  def getPredictions(tokens: ArrayBuffer[Int]) = {
-    log info("getPred ")
+  def tag(tokensIn: ArrayBuffer[String]) = {
+    val tokens = tokensIn.map(intMap.getWordId)
+    log info ("numTags " + numTags)
     val numPreTestTokens = numTokens
     val graph = propagateLabels(tokens)
 
@@ -188,18 +204,16 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
       // CHOICE: We are not checking the tag dictionary while
       // picking the label with the max score!
       // Perhaps this helps us overcome limitations in the dictionary.
-        val v = graph._vertices.get(nodeNamer.tok(tokenId))
+        log debug "tokenId " + tokenId + " isNonTraining " + intMap.isNonTraining(token)
+        log debug "tokenStr " + intMap.getWordStr(token)
+        val v = graph.GetVertex(nodeNamer.tok(tokenId))
+        log debug v.GetNeighborNames.mkString(" ")
+        val w = graph.GetVertex(nodeNamer.w(token))
+        log debug w.GetNeighborNames.mkString(" ")
         getBestLabel(v)
       }
     })
     tagsFinal
-  }
-
-//  Confidence in correctness: High.
-//  Reason: Proved correct.
-  def tag(tokensIn: ArrayBuffer[String]) = {
-    val testTokens = tokensIn.map(intMap.getWordId)
-    getPredictions(testTokens)
   }
 
 }

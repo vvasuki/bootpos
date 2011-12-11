@@ -134,7 +134,8 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Se
   def test = {
     log info("Testing " + language + ' ' + corpus);
 
-    val iter = getWordTagIteratorFromFile(TEST_DIR)
+    var iter = getWordTagIteratorFromFile(TEST_DIR)
+    if(BootPos.testTokensLimit > 0) iter = iter.take(BootPos.testTokensLimit)
     val testData = new ArrayBuffer[Array[String]](10000)
     iter.copyToBuffer(testData)
     log info("test tokens: " + testData.length)

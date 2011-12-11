@@ -15,8 +15,7 @@ class LabelPropagationTrainer(sentenceSepTagStr: String, sentenceSepWordStr: Str
   def train(iter: Iterator[Array[String]]) = {
     val lstData= iter.map(x => Array(intMap.getWordId(x(0)), intMap.getTagId(x(1)))).toList
     log info("training.. ")
-    lstData.foreach(x => intMap.wordTagList.increment(x(0), x(1)))
-    intMap.numWordsTraining = intMap.numWordsTotal
+    intMap.updateWordTagList(lstData)
     updateBestTagsOverall
     // log info(txtIn.map(x => x(0) + " " + x(1)).mkString("\n"))
     tagger.addTokenEdges(lstData.map(_(0)), lstData.map(_(1)))
@@ -32,10 +31,8 @@ class LabelPropagationTrainer(sentenceSepTagStr: String, sentenceSepWordStr: Str
   override def trainWithDictionary(dictionary: Dictionary) = {
     var lstData = dictionary.lstData.
       map(x => Array(intMap.getWordId(x(0)), intMap.getTagId(x(1))))
-    lstData.foreach(x => intMap.wordTagList.increment(x(0), x(1)))
-    intMap.numWordsTraining = intMap.numWordsTotal
+    intMap.updateWordTagList(lstData)
     updateBestTagsOverall
-    log info("numWordsTraining "+ intMap.numWordsTraining)
     // wordTagMap.matrix.foreach(x => log.info(x.indexWhere(y => y>0)))
     tagger
   }

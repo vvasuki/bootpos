@@ -95,9 +95,10 @@ class IntRepresentor extends Serializable{
   def updateWordTagList(lstData: Seq[Array[Int]]) = {
     lstData.foreach(x => wordTagList.increment(x(0), x(1)))
     updateNumWordsTraining
+    log info toString
   }
 
-  override def toString = "numWordsTraining " + numWordsTraining + "numWordsSeen " + numWordsSeen + "numWordsTotal " + numWordsTotal
+  override def toString = "numTags "+ numTags + " numWordsTraining " + numWordsTraining + " numWordsSeen " + numWordsSeen + " numWordsTotal " + numWordsTotal
 }
 
 trait Tagger extends Serializable{

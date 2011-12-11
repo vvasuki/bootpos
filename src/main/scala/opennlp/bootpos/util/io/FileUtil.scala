@@ -17,6 +17,14 @@ object fileUtil {
     val files = filesInDir.filter(condition).sorted
     dir + files.head
   }
+
+  
+/*  Confidence in correctness: High
+  Reason: Adapted from internet.*/
+  def write(fileName: String)(op: java.io.PrintWriter => Unit) {
+    val p = new java.io.PrintWriter(new java.io.File(fileName))
+    try { op(p) } finally { p.close() }
+  }
 }
 
 object rawTextProcessor {

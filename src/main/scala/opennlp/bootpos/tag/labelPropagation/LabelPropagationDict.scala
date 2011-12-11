@@ -7,7 +7,7 @@ import upenn.junto.graph._
 import scala.collection.mutable._
 import opennlp.bootpos.util.collection._
 import opennlp.bootpos.app._
-
+import scala.collection.JavaConversions._
 
 class LabelPropagationDict extends LabelPropagationTaggerBase{
   val wordAfterWordMap = new MatrixBufferTrieRows[Int](intMap.WORDNUM_IN)
@@ -85,11 +85,11 @@ class LabelPropagationDict extends LabelPropagationTaggerBase{
 
     val wtMap = new HashMap[String, String]
     import scala.collection.JavaConverters._
-    val nodeNames = graph._vertices.keySet.asScala
+    val nodeNames = graph.vertices.keySet
     nodeNames.filter(_.startsWith(nodeNamer.P_WORD_TYPE)).
       filterNot(_ == nodeNamer.w(intMap.sentenceSepWord)).
       foreach(x => {
-      val v = graph._vertices.get(x)
+      val v = graph.GetVertex(x)
       val tagStr = getBestLabel(v)
       wtMap(nodeNamer.deprefixify(x)) = tagStr
     })

@@ -22,6 +22,7 @@ object BootPos {
   var numIterations = 1
   var rawTokensLimit = 0
   var taggedTokensLimit = 0
+  var testTokensLimit = 0
 
   // Initial read of properties.
   // This is wverwritten if a fileName is passed during invocation.
@@ -46,6 +47,8 @@ object BootPos {
     allCorpora = props.getProperty("allCorpora").replace(" ", "").split(",").toList
     rawTokensLimit = props.getProperty("rawTokensLimit").toInt
     taggedTokensLimit = props.getProperty("taggedTokensLimit").toInt
+    testTokensLimit = props.getProperty("testTokensLimit").toInt
+    
 
     if(bWiktionary) bUniversalTags = true;
     else bUseTrainingData = true;

@@ -54,8 +54,6 @@ class TaggingResult {
     novelTokensFrac = numTestTokensNovel/numTestTokens.toDouble
     log info ("Accuracy: %.3f, (Training: %.3f, Seen: %3f, Novel: %.3f)\n" format (accuracy, accuracyKnown, accuracySeen, accuracyNovel))
     log info ("Non training tokens: %.3f\n" format (novelTokensFrac))
-    
-    
   }
 
 
