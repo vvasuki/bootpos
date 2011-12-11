@@ -13,7 +13,7 @@ import upenn.junto.app._
 class LblPropEMHMM(sentenceSepTagStr :String, sentenceSepWordStr: String, bUseTrainingStats: Boolean = false) extends
 EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats) {
   var lblPropTrainer = new LabelPropagationTrainer(sentenceSepTagStr, sentenceSepWordStr)
-  var lblPropTagger: Tagger = null
+  var lblPropTagger: Tagger = lblPropTrainer.tagger
   tagger.intMap = lblPropTagger.intMap
   setIntMap
 
@@ -48,7 +48,7 @@ EMHMM(sentenceSepTagStr, sentenceSepWordStr, bUseTrainingStats) {
   override def processUntaggedData(textIn: ArrayBuffer[String]) = {
     val textInUp = textIn.map(_.map(_.toUpper))
     val tokenSeq1 = textInUp.map(x => intMap.getWordId(x))
-    val labelDistributions = lblPropTagger.getTagDistributions(tokenSeq1).asInstanceOf
+    val labelDistributions = lblPropTagger.getTagDistributions(tokenSeq1)
     log info "Got label distribution from label propagation."
 
     // Now forget counts derived from dictionary - but not completely.

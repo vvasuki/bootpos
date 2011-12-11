@@ -117,7 +117,7 @@ trait Tagger extends Serializable{
 //        var tagId = testData(i)(1)
 
   def tag(tokensIn: ArrayBuffer[String]): IndexedSeq[String]
-  def getTagDistributions(tokens: ArrayBuffer[Int]) = {log error "undefined"}
+  def getTagDistributions(tokens: ArrayBuffer[Int]) = {log error "undefined"; IndexedSeq[IndexedSeq[(Int, Double)]]()}
 }
 
 abstract class TaggerTrainer(sentenceSepTagStr :String, sentenceSepWordStr: String) extends Serializable {
