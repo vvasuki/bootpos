@@ -55,9 +55,8 @@ trait LabelPropagationTaggerBase extends Tagger{
   //   Reason: Well tested.
   def makeWordTagEdges = {
     val edges = new ListBuffer[Edge]()
-    val numWords = intMap.wordTagList.numRows
     // log info("intMap.wordTagList.numRows "+intMap.wordTagList.numRows)
-    for(word <- 0 to numWords-1) {
+    for(word <- 0 to numWordsTotal-1) {
 //      Add (w, t) edges
 //        In the case of novel words, simply use the uniform distribution on all possible tags excluding the sentence separator tag.
       if(word >= intMap.numWordsTraining)
@@ -201,7 +200,7 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
     log info "num tokens " + tokens.length
     val numPreTestTokens = numTokens
     propagateLabels(tokens)
-    printGraph
+    // printGraph
 
     // Deduce tags.
     // Proved correct.
@@ -214,12 +213,12 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
       // CHOICE: We are not checking the tag dictionary while
       // picking the label with the max score!
       // Perhaps this helps us overcome limitations in the dictionary.
-        log debug "tokenId " + tokenId + " isNonTraining " + intMap.isNonTraining(token)
-        log debug "tokenStr " + intMap.getWordStr(token)
+        // log debug "tokenId " + tokenId + " isNonTraining " + intMap.isNonTraining(token)
+        // log debug "tokenStr " + intMap.getWordStr(token)
         val v = graph.GetVertex(nodeNamer.tok(tokenId))
-        log debug v.GetNeighborNames.mkString(" ")
-        val w = graph.GetVertex(nodeNamer.w(token))
-        log debug w.GetNeighborNames.mkString(" ")
+        // log debug v.GetNeighborNames.mkString(" ")
+        // val w = graph.GetVertex(nodeNamer.w(token))
+        // log debug w.GetNeighborNames.mkString(" ")
         getBestLabel(v)
       }
     })
