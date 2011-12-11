@@ -11,6 +11,7 @@ import scala.collection.immutable.IndexedSeq
 import opennlp.bootpos.util.collection._
 import opennlp.bootpos.app._
 import opennlp.bootpos.util.io.fileUtil
+import scala.collection.JavaConversions._
 
 trait LabelPropagationTaggerBase extends Tagger{
   val nodeNamer = new NodeNamer(intMap)
@@ -85,6 +86,14 @@ trait LabelPropagationTaggerBase extends Tagger{
     })
   }
 
+  def printGraph = {
+    log debug graph.vertices.keySet.filter(_ startsWith(nodeNamer.P_TAG)).toString
+    log debug graph.vertices.keySet.filter(_ startsWith(nodeNamer.P_TOKEN)).toString
+    log debug graph.vertices.keySet.filter(_ startsWith(nodeNamer.P_WORD_TYPE)).toString
+    log debug graph.vertices.keySet.filter(_ startsWith(nodeNamer.P_CONTEXT)).toString
+    log debug edges.mkString("\n")
+  }
+
 }
 
 class LabelPropagationTagger extends LabelPropagationTaggerBase{
@@ -99,13 +108,12 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
 //   Creates token-previousTokenType edges and token-wordType edges.
 //  Confidence in correctness: High.
 //  Reason: proved correct.
-  def addTokenEdges(tokenList: List[Int], tagList: List[Int] = null) = {
+  def addTokenEdges(tokenList: Seq[Int], tagList: List[Int] = null) = {
     log info("adding token edges: ")
     var prevPrevToken = intMap.sentenceSepWord
     var prevToken = intMap.sentenceSepWord
-    val tokenListLength = tokenList.length -1
-    
-    for(seqNum <- 0 to tokenListLength-1) {
+    val tokenListLength = tokenList.length
+    for(seqNum <- 0 to tokenListLength -1) {
       val token = tokenList(seqNum)
       if(seqNum % 100 == 0)
         printf("%1.2f\r", seqNum/tokenListLength.toDouble)
@@ -135,7 +143,7 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
 // Confidence in correctness: High.
 // Reason: Proved correct.
   def propagateLabels(tokens: ArrayBuffer[Int]) = {
-    addTokenEdges(tokens.toList)
+    addTokenEdges(tokens)
     val wordTagEdges = makeWordTagEdges
     // log debug(intMap.wordTagList)
     // log debug("wtEdges" + wordTagEdges.mkString("\n"))
@@ -157,7 +165,7 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
   override def getTagDistributions(tokens: ArrayBuffer[Int]) = {
     log info("getPred ")
     val numPreTestTokens = numTokens
-    val graph = propagateLabels(tokens)
+    graph = propagateLabels(tokens)
 
     // Deduce tags.
     // Proved correct.
@@ -189,9 +197,11 @@ class LabelPropagationTagger extends LabelPropagationTaggerBase{
 //  Reason: Proved correct.
   def tag(tokensIn: ArrayBuffer[String]) = {
     val tokens = tokensIn.map(intMap.getWordId)
-    log info ("numTags " + numTags)
+    log info intMap.toString
+    log info "num tokens " + tokens.length
     val numPreTestTokens = numTokens
-    val graph = propagateLabels(tokens)
+    propagateLabels(tokens)
+    printGraph
 
     // Deduce tags.
     // Proved correct.

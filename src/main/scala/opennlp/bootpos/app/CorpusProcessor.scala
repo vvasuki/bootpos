@@ -76,31 +76,40 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Se
   if(BootPos.bWiktionary) train(WIKTIONARY)
   if(BootPos.bUseTrainingData) train(TRAINING_DIR)
 
-
+//  Confidence in correctness: High.
+//  Reason: Well tested.
+  def getUntaggedTokens = {
+    val tokensUntagged = new ArrayBuffer[String]()
+    log info("Processing untagged data.")
+    if(BootPos.bRawDataFromTrainingFile) {
+      var iterRaw = getWordTagIteratorFromFile("train")
+      if(BootPos.rawTokensLimit > 0)
+        iterRaw = iterRaw.take(BootPos.rawTokensLimit)
+      tokensUntagged ++= iterRaw.map(_(0))
+    }
+    else {
+      var untaggedDataFile = getFileName("raw")
+      tokensUntagged ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap(), maxLines = BootPos.rawTokensLimit).getColumn(0)
+    }
+    log debug "Got " + tokensUntagged.length
+    if(tokensUntagged.head != sentenceSepWord) tokensUntagged prepend sentenceSepWord
+    if(tokensUntagged.last != sentenceSepWord) tokensUntagged += sentenceSepWord
+    tokensUntagged
+  }
 
 //  Confidence in correctness: High.
 //  Reason: Well tested.
   def train(mode: String) = {
     log info("Training with mode "+ mode)
     var iter = getWordTagIteratorFromFile(mode)
-    val tokensUntagged = new ArrayBuffer[String]()
+    var tokensUntagged = new ArrayBuffer[String]()
 
     if(bProcessUntaggedData || bTrainingDataAsDictionary){
-      log info("Processing untagged data.")
-      if(BootPos.bRawDataFromTrainingFile) {
-        var iterRaw = getWordTagIteratorFromFile("train")
-        if(BootPos.rawTokensLimit > 0) iterRaw = iterRaw.take(BootPos.rawTokensLimit)
-        tokensUntagged ++= iterRaw.map(_(0))
-        log debug "Got " + tokensUntagged.length
-      }
-      else {
-        var untaggedDataFile = getFileName("raw")
-        tokensUntagged ++= new TextTableParser(file = untaggedDataFile, encodingIn = encoding, lineMapFn = lineMap(), maxLines = BootPos.rawTokensLimit).getColumn(0)
-      }
-      if(tokensUntagged.head != sentenceSepWord) tokensUntagged prepend sentenceSepWord
-      if(tokensUntagged.last != sentenceSepWord) tokensUntagged += sentenceSepWord
+      tokensUntagged = getUntaggedTokens
     }
 
+    if(BootPos.taggedTokensLimit > 0)
+      iter = iter.take(BootPos.taggedTokensLimit)
     if(mode == WIKTIONARY) {
       // get words to consider.
       log info("Loading test words too while picking dictionary entries.")
@@ -111,8 +120,6 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Se
       tagger = taggerTrainer.trainWithDictionary(dict)
     }
     else if(!bTrainingDataAsDictionary) {
-      if(BootPos.taggedTokensLimit > 0)
-        iter = iter.take(BootPos.taggedTokensLimit)
       tagger = taggerTrainer.train(iter)
     }
     else {
