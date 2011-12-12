@@ -19,7 +19,12 @@ class SequencelessTagger extends Tagger {
   //  Reason: Well tested.
     def getBestTag(word: Int):Int = {
       if(intMap.isNonTraining(word)) bestTagsOverall.head
-      else bestTagsByFreq(word).head
+      else {
+        val bestTags = bestTagsByFreq(word)
+        if(bestTags.size == 1) bestTags.head
+        else bestTagsOverall.find(t=>bestTags contains t).get
+        // The above clever logic is actually worse than simply picking bestTags.head.
+      }
     }
     val testData = tokensIn.map(intMap.getWordId)
     testData.map(x => intMap.getTagStr(getBestTag(x)))

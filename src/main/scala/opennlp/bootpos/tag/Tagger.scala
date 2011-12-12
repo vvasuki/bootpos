@@ -103,8 +103,9 @@ class IntRepresentor extends Serializable{
 
 trait Tagger extends Serializable{
   val log = LoggerFactory.getLogger(this.getClass)
-  var bestTagsOverall = new LinkedList[Int]()
-  var bestTagsByFreq: ArrayBuffer[Iterable[Int]] = null
+  // A list of tags in decreasing order of frequency.
+  var bestTagsOverall: Seq[Int] = null
+  var bestTagsByFreq: ArrayBuffer[List[Int]] = null
 
   // The below will be set during training
   var intMap = new IntRepresentor()
@@ -135,12 +136,12 @@ abstract class TaggerTrainer(sentenceSepTagStr :String, sentenceSepWordStr: Stri
 //  Reason: proved correct.
   def updateBestTagsOverall = {
     val tagCount = intMap.wordTagList.colSums
-    tagger.bestTagsOverall = tagger.bestTagsOverall.+: (tagCount.indexOf(tagCount.max))
-    // log info(bestTagsOverall)
+    tagger.bestTagsOverall = (0 to numTags-1) sortBy (t => -tagCount(t))
+    log info (tagger.bestTagsOverall.map(intMap.getTagStr) mkString(" "))
   }
 
   def updateBestTagsByFreq ={tagger.bestTagsByFreq = intMap.wordTagList.matrix.map(
-    lst => lst filter (x => x._2 == lst.values.max) keys
+    lst => lst.filter(x => x._2 == lst.values.max).keys.toList
   )}
 
   def train(iter: Iterator[Array[String]]): Tagger
