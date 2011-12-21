@@ -86,6 +86,9 @@ class TaggerTester(tagger: Tagger) {
     val bSentenceSep = tokens.map(_ == intMap.sentenceSepWordStr)
     val bCorrect = tags zip tagsActual map (x => x._1 == x._2)
 
+    val exampleTagging = tokens zip tagsActual zip tags take 50 mkString " "
+    log info exampleTagging
+
     val tagResults = new TaggingResult()
     tagResults.maxErrorTags = examineMistakes(tags, tagsActual).toString
     tagResults.processTaggingResults(bCorrect, bTokenNonTraining, bTokenUnseen, bSentenceSep)

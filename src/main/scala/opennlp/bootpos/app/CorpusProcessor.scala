@@ -101,33 +101,35 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Se
 //  Reason: Well tested.
   def train(mode: String) = {
     log info("Training with mode "+ mode)
-    var iter = getWordTagIteratorFromFile(mode)
+    var iterTraining = getWordTagIteratorFromFile(mode)
     var tokensUntagged = new ArrayBuffer[String]()
 
     if(bProcessUntaggedData || bTrainingDataAsDictionary){
       tokensUntagged = getUntaggedTokens
     }
 
-    if(BootPos.taggedTokensLimit > 0)
-      iter = iter.take(BootPos.taggedTokensLimit)
     if(mode == WIKTIONARY) {
       // get words to consider.
       log info("Loading test words too while picking dictionary entries.")
       val testWords = getWordTagIteratorFromFile(TEST_DIR).map(_(0)).toSet
-      val dict = new Dictionary(iter, testWords ++ tokensUntagged)
+      val dict = new Dictionary(iterTraining, testWords ++ tokensUntagged)
       dict.addEntry(sentenceSepWord, sentenceSepTag)
       dict.updateCompleteness(tokensUntagged)
       tagger = taggerTrainer.trainWithDictionary(dict)
     }
-    else if(!bTrainingDataAsDictionary) {
-      tagger = taggerTrainer.train(iter)
-    }
     else {
-      val dict = new Dictionary(iter)
-      dict.removeDuplicateEntries
-      dict.updateCompleteness(tokensUntagged)
-      log info "training with dictionary"
-      tagger = taggerTrainer.trainWithDictionary(dict)
+      if(BootPos.taggedTokensLimit > 0)
+        iterTraining = iterTraining.take(BootPos.taggedTokensLimit)
+      if(!bTrainingDataAsDictionary) {
+        tagger = taggerTrainer.train(iterTraining)
+      }
+      else {
+        val dict = new Dictionary(iterTraining)
+        dict.removeDuplicateEntries
+        dict.updateCompleteness(tokensUntagged)
+        log info "training with dictionary"
+        tagger = taggerTrainer.trainWithDictionary(dict)
+      }
     }
     if(bProcessUntaggedData){
       log info "processing Untagged Data"
