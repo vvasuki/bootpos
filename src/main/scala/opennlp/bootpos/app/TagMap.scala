@@ -7,9 +7,11 @@ import opennlp.bootpos.util.io.TextTableParser
 import opennlp.bootpos.tag._
 import opennlp.bootpos.tag.hmm._
 import java.util.NoSuchElementException
+import org.slf4j.LoggerFactory
 import java.io.File
 
 class TagMap(TAG_MAP_DIR: String, languageCode: String, corpus: String, sentenceSepTagIn: String = null) {
+  val log = LoggerFactory.getLogger(this.getClass)
   val tagMap = new HashMap[String, String]()
   if(sentenceSepTagIn != null)
     tagMap(sentenceSepTagIn) = sentenceSepTagIn
@@ -36,7 +38,7 @@ class TagMap(TAG_MAP_DIR: String, languageCode: String, corpus: String, sentence
 
 //    print(tagMap)
   } catch {
-    case e: java.io.FileNotFoundException => println("Alert: no tag map found!" + e)
+    case e: java.io.FileNotFoundException => log warn ("Alert: no tag map found!" + e)
   }
 
   /*
@@ -53,9 +55,11 @@ class TagMap(TAG_MAP_DIR: String, languageCode: String, corpus: String, sentence
     var tag = tagIn.map(_.toUpper)
     if(tagMap.contains(tag)) throw new IllegalArgumentException("Mapping already exists")
 
-    var iter = tagsUniversal.filter(x => !(x.equals("X") || x.equals(".")))
+    var iter = tagsUniversal.filterNot(x => (x.equals("X") || x.equals(".")))
     for(tagUniversal <- iter) {
-      if(tag.indexOf(tagUniversal) != -1) {tagMap(tag) = tagUniversal; return}
+      if(tag.indexOf(tagUniversal) != -1) {
+        tagMap(tag) = tagUniversal; return
+      }
     }
     //    Begin special cases.
     // Mapping to universal tag sets.
@@ -69,19 +73,23 @@ class TagMap(TAG_MAP_DIR: String, languageCode: String, corpus: String, sentence
     if(tag.indexOf("PARTICLE") != -1) {tagMap(tag) = "PRT"; return}
     if(tag.indexOf("ARTICLE") != -1) {tagMap(tag) = "DET"; return}
     unmappedTags = unmappedTags+1
-    println("unknown tag "+tag + " :word "+ word);
+    log info ("unknown tag "+tag + " :word "+ word);
     tagMap(tag) = "X";
+    log info tag + " -> " + tagMap(tag)
   }
+  
 //  Confidence in correctness: High.
 //  Reason: Proved.
   def getMappedTag(tagIn1: String, word: String): String = {
     var tag = tagIn1.map(_.toUpper)
     try{tag = tagMap(tag);}
     catch{
-      case e => updateTagMap(tag, word)
+      case e => {updateTagMap(tag, word); tag = tagMap(tag)}
     }
     return tag
   }
+
+  override def toString = tagMap.toString
 
 }
 

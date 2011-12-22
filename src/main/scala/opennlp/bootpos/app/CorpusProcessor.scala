@@ -203,7 +203,7 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Se
     if(mode.equals(WIKTIONARY))tagField = 2
     else if(! (BootPos.conllCorpora contains corpus)) {
       wordField = 0; tagField = 1;
-      if(List("hmm") contains corpus)
+      if(corpus endsWith "hmm")
         sep = '/'
     }
 
@@ -217,13 +217,16 @@ class CorpusProcessor(language: String, corpus: String, taggerType: String = "Se
     if(mode.equals(WIKTIONARY))
       filterFn = ((x:Array[String]) => ((x.length >= tagField+1) && x(0).equalsIgnoreCase(languageStr)))
 
-    val parser = new TextTableParser(file = file, encodingIn = encoding, separator = sep, filterFnIn = filterFn, lineMapFn = lineMap(newSentenceLine))
-    parser.getFieldIterator(wordField, tagField).map(x => {
+    val parser = new TextTableParser(file = file, encodingIn = encoding,
+      separator = sep, filterFnIn = filterFn, lineMapFn = lineMap(newSentenceLine))
+    val iter = parser.getFieldIterator(wordField, tagField).map(x => {
         var tag = x(1); var word = x(0);
         if(BootPos.bUniversalTags) tag = tagMap.getMappedTag(tag, word)
         else tag = tag.map(_.toUpper)
         Array(word, tag)
       })
+    log info tagMap.toString
+    iter
   }
 
 }
