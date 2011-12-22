@@ -12,7 +12,7 @@ cd $BOOTPOS_DIR
 #    LabelPropagation
 #    OpenNLP
 #    LblPropEMHMM
-TAGGERS=( SequencelessTagger OpenNLP HMM EMHMM LblPropEMHMM )
+TAGGERS=( SequencelessTagger OpenNLP HMM EMHMM LabelPropagation LblPropEMHMM )
 for TAGGER in ${TAGGERS[@]}
 do
 PERL_EXP="'s/taggerType = .*/taggerType = $TAGGER/'"

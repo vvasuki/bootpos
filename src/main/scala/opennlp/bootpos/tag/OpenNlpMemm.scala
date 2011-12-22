@@ -67,6 +67,7 @@ class OpenNLPTrainer(languageCode: String, sentenceSepTagStr :String, sentenceSe
   //    update wordIntMap appropriately.
     val wordTagLst = wordTagIter.toList
     wordTagLst.foreach(x => intMap.getWordId(x(0).map(_.toUpper))) // update wordIntMap.
+    intMap.updateNumWordsTraining
 
     val sentenceStream = new TaggedSentenceStream(wordTagLst.iterator, intMap.sentenceSepTagStr)
     val numIters = 100; val eventCutoff = 5
